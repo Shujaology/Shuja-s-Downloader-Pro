@@ -12,7 +12,6 @@ import {
   INITIAL_SETTINGS,
   detectCategory,
 } from './constants';
-import { Header } from './components/Header';
 import { IDMMenuBar } from './components/IDMMenuBar';
 import { IDMToolbar } from './components/IDMToolbar';
 import { IDMSidebar } from './components/IDMSidebar';
@@ -302,18 +301,6 @@ export const App: React.FC = () => {
               : 'bg-[#f0f0f0] border-[#999999]'
           }`}
         >
-          {/* Windows Title Bar */}
-          <Header
-            settings={settings}
-            onMinimize={() => {}}
-            onMaximize={() => setIsMaximized(!isMaximized)}
-            onClose={() => {
-              if (confirm('Exit Shuja\'s Download Manager Pro?')) {
-                window.close();
-              }
-            }}
-          />
-
           {/* IDM Menu Bar */}
           <IDMMenuBar
             settings={settings}
