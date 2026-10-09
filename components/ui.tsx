@@ -17,12 +17,12 @@ export function cn(...classes: (string | false | null | undefined)[]) {
 }
 
 export const CATEGORY_META: Record<Category, { label: string; icon: LucideIcon; tint: string }> = {
-  video: { label: 'Video', icon: Film, tint: 'bg-rose-500/10 text-rose-600 dark:text-rose-400' },
-  music: { label: 'Music', icon: Music, tint: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+  video: { label: 'Videos', icon: Film, tint: 'bg-rose-500/10 text-rose-600 dark:text-rose-400' },
+  music: { label: 'Audio', icon: Music, tint: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
   images: { label: 'Images', icon: Image, tint: 'bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400' },
   documents: { label: 'Documents', icon: FileText, tint: 'bg-sky-500/10 text-sky-600 dark:text-sky-400' },
   compressed: { label: 'Archives', icon: Archive, tint: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
-  programs: { label: 'Programs', icon: AppWindow, tint: 'bg-violet-500/10 text-violet-600 dark:text-violet-400' },
+  programs: { label: 'Software', icon: AppWindow, tint: 'bg-violet-500/10 text-violet-600 dark:text-violet-400' },
   other: { label: 'Other', icon: FileQuestion, tint: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400' },
 };
 
@@ -38,7 +38,7 @@ type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
 const VARIANTS: Record<ButtonVariant, string> = {
   primary:
-    'bg-blue-600 text-white shadow-sm shadow-blue-600/20 hover:bg-blue-500 active:bg-blue-700 disabled:bg-blue-600/50',
+    'bg-gradient-to-r from-indigo-500 to-violet-600 text-white shadow-sm shadow-indigo-600/30 hover:from-indigo-400 hover:to-violet-500 disabled:opacity-50',
   secondary:
     'bg-white text-zinc-800 border border-zinc-200 shadow-xs hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-800',
   ghost: 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100',
@@ -191,10 +191,10 @@ export function Switch({ checked, onChange, label }: { checked: boolean; onChang
 }
 
 const BAR_COLORS: Record<DownloadItem['status'], string> = {
-  downloading: 'bg-blue-600',
-  connecting: 'bg-blue-600',
+  downloading: 'bg-gradient-to-r from-sky-500 via-indigo-500 to-violet-500',
+  connecting: 'bg-gradient-to-r from-sky-500 via-indigo-500 to-violet-500',
   completed: 'bg-emerald-500',
-  paused: 'bg-amber-500',
+  paused: 'bg-orange-500',
   queued: 'bg-zinc-400',
   error: 'bg-red-500',
 };
@@ -220,18 +220,18 @@ export function ProgressBar({ item, className }: { item: DownloadItem; className
 }
 
 const PILL: Record<DownloadItem['status'], { label: string; cls: string }> = {
-  downloading: { label: 'Downloading', cls: 'bg-blue-500/10 text-blue-700 dark:text-blue-300' },
-  connecting: { label: 'Connecting', cls: 'bg-blue-500/10 text-blue-700 dark:text-blue-300' },
-  completed: { label: 'Completed', cls: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' },
-  paused: { label: 'Paused', cls: 'bg-amber-500/10 text-amber-700 dark:text-amber-300' },
-  queued: { label: 'Queued', cls: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300' },
-  error: { label: 'Failed', cls: 'bg-red-500/10 text-red-700 dark:text-red-300' },
+  downloading: { label: 'Downloading', cls: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300' },
+  connecting: { label: 'Connecting', cls: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300' },
+  completed: { label: 'Completed', cls: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' },
+  paused: { label: 'Paused', cls: 'border-orange-500/40 bg-orange-500/15 text-orange-700 dark:text-orange-300' },
+  queued: { label: 'Queued', cls: 'border-zinc-500/30 bg-zinc-500/10 text-zinc-600 dark:text-zinc-300' },
+  error: { label: 'Failed', cls: 'border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300' },
 };
 
 export function StatusPill({ status }: { status: DownloadItem['status'] }) {
   const { label, cls } = PILL[status];
   return (
-    <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium', cls)}>
+    <span className={cn('inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium', cls)}>
       <span
         className={cn(
           'size-1.5 rounded-full bg-current',

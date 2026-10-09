@@ -1,48 +1,54 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowDown, CalendarClock, Database, Gauge } from 'lucide-react';
 import type { DownloadItem, Settings } from '../types';
-import { formatBytes, formatSpeed } from '../lib/format';
-import { isActive } from './ui';
+import { formatBytes } from '../lib/format';
+import { cn, isActive } from './ui';
 
 export const StatusBar: React.FC<{ items: DownloadItem[]; settings: Settings }> = ({ items, settings }) => {
-  const [usage, setUsage] = useState<number | null>(null);
-  const active = items.filter(isActive);
-  const speed = active.reduce((n, i) => n + i.speed, 0);
+  const [storage, setStorage] = useState<{ usage: number; quota: number } | null>(null);
+  const [online, setOnline] = useState(navigator.onLine);
+  const active = items.filter(isActive).length;
   const queued = items.filter(i => i.status === 'queued').length;
-  const completed = items.filter(i => i.status === 'completed').length;
 
   useEffect(() => {
-    const read = () => navigator.storage?.estimate?.().then(e => setUsage(e.usage ?? null)).catch(() => {});
+    const read = () =>
+      navigator.storage
+        ?.estimate?.()
+        .then(e => setStorage({ usage: e.usage ?? 0, quota: e.quota ?? 0 }))
+        .catch(() => {});
     read();
     const t = window.setInterval(read, 5000);
-    return () => window.clearInterval(t);
+    const update = () => setOnline(navigator.onLine);
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    return () => {
+      window.clearInterval(t);
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+    };
   }, []);
 
+  const sep = <span className="text-zinc-300 dark:text-zinc-700">|</span>;
+  const scheduler = settings.scheduleEnabled ? `Active (${settings.scheduleStart}${settings.scheduleStop ? `–${settings.scheduleStop}` : ''})` : 'Idle';
+
   return (
-    <footer className="tabular flex h-8 shrink-0 items-center gap-5 border-t border-zinc-200 bg-white px-4 text-[11px] text-zinc-500 dark:border-zinc-800/80 dark:bg-zinc-950 dark:text-zinc-400">
+    <footer className="tabular flex h-8 shrink-0 items-center gap-3 border-t border-zinc-200 bg-white px-4 text-[11px] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
       <span className="flex items-center gap-1.5">
-        <ArrowDown className="size-3.5 text-blue-600 dark:text-blue-400" />
-        <span className="font-medium text-zinc-700 dark:text-zinc-200">{speed > 0 ? formatSpeed(speed) : '0 B/s'}</span>
+        <span className={cn('size-2 rounded-full', online ? 'bg-emerald-500' : 'bg-red-500')} />
+        Network: {online ? 'Connected' : 'Offline'}
       </span>
+      {storage && storage.quota > 0 && (
+        <>
+          {sep}
+          <span>Disk Space Available: {formatBytes(Math.max(0, storage.quota - storage.usage))}</span>
+        </>
+      )}
+      {sep}
       <span>
-        {active.length} active · {queued} queued · {completed} completed
+        {active} active · {queued} queued
       </span>
-      {settings.scheduleEnabled && (
-        <span className="flex items-center gap-1.5">
-          <CalendarClock className="size-3.5" /> Scheduled {settings.scheduleStart}
-          {settings.scheduleStop && `–${settings.scheduleStop}`}
-        </span>
-      )}
-      <span className="ml-auto flex items-center gap-1.5">
-        <Gauge className="size-3.5" />
-        {settings.speedLimitEnabled ? `Limited to ${formatSpeed(settings.speedLimitKBps * 1024)}` : 'No bandwidth limit'}
-      </span>
-      {usage != null && (
-        <span className="flex items-center gap-1.5">
-          <Database className="size-3.5" /> {formatBytes(usage)} stored
-        </span>
-      )}
-      <span className="text-zinc-400 dark:text-zinc-600">v2.0</span>
+      <span className="ml-auto">Smart Scheduler: {scheduler}</span>
+      {sep}
+      <span className="font-medium text-indigo-600 dark:text-indigo-400">Shuja Turbo Core v2.0</span>
     </footer>
   );
 };

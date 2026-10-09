@@ -6,7 +6,7 @@ import { toastStore } from '../services/toast';
 const SETTINGS_KEY = 'sdp_settings_v2';
 
 export const DEFAULT_SETTINGS: Settings = {
-  theme: 'system',
+  theme: 'dark',
   connections: 8,
   maxConcurrent: 3,
   speedLimitEnabled: false,

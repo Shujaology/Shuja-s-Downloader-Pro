@@ -1,9 +1,9 @@
 import React from 'react';
-import { ArrowDown, ArrowUp, Download, MoreHorizontal, Pause, Play, RotateCcw, Sparkles } from 'lucide-react';
+import { ArrowDown, ArrowUp, Download, FolderOpen, MoreHorizontal, Pause, Play, RotateCcw, Sparkles } from 'lucide-react';
 import type { DownloadItem, SortKey, SortState } from '../types';
-import { formatBytes, formatDate, formatDuration, formatSpeed, hostOf } from '../lib/format';
+import { formatBytes, formatDuration, formatSpeed, hostOf } from '../lib/format';
 import { SAMPLE_LINKS } from '../lib/samples';
-import { FileIcon, IconButton, Kbd, ProgressBar, StatusPill, cn, isActive, progressOf } from './ui';
+import { CATEGORY_META, IconButton, Kbd, ProgressBar, StatusPill, cn, isActive, progressOf } from './ui';
 
 interface DownloadListProps {
   items: DownloadItem[];
@@ -19,17 +19,18 @@ interface DownloadListProps {
   isEmptyLibrary: boolean;
 }
 
-const GRID = 'grid grid-cols-[minmax(0,1fr)_110px_180px_96px_84px] items-center gap-4';
+const GRID = 'grid grid-cols-[minmax(0,2fr)_80px_minmax(130px,1fr)_88px_72px_76px] items-center gap-4';
 
-function HeaderCell({ label, sortKey, sort, onSort, align = 'left' }: { label: string; sortKey?: SortKey; sort: SortState; onSort: (k: SortKey) => void; align?: 'left' | 'right' }) {
-  if (!sortKey) return <div className={cn(align === 'right' && 'text-right')}>{label}</div>;
+function HeaderCell({ label, sortKey, sort, onSort, align = 'left' }: { label: string; sortKey?: SortKey; sort: SortState; onSort: (k: SortKey) => void; align?: 'left' | 'right' | 'center' }) {
+  const alignCls = align === 'right' ? 'justify-end text-right' : align === 'center' ? 'justify-center text-center' : '';
+  if (!sortKey) return <div className={cn('flex', alignCls)}>{label}</div>;
   const active = sort.key === sortKey;
   const Arrow = sort.dir === 'asc' ? ArrowUp : ArrowDown;
   return (
     <button
       type="button"
       onClick={() => onSort(sortKey)}
-      className={cn('flex items-center gap-1 transition-colors hover:text-zinc-900 dark:hover:text-zinc-100', align === 'right' && 'justify-end', active && 'text-zinc-900 dark:text-zinc-100')}
+      className={cn('flex items-center gap-1 tracking-wider uppercase transition-colors hover:text-zinc-900 dark:hover:text-zinc-100', alignCls, active && 'text-zinc-900 dark:text-zinc-100')}
     >
       {label}
       {active && <Arrow className="size-3" />}
@@ -38,20 +39,18 @@ function HeaderCell({ label, sortKey, sort, onSort, align = 'left' }: { label: s
 }
 
 function secondaryLine(item: DownloadItem) {
-  switch (item.status) {
-    case 'downloading':
-      return `${formatBytes(item.receivedBytes)} of ${formatBytes(item.totalBytes)} · ${item.segments.filter(s => s.active).length} connections`;
-    case 'connecting':
-      return 'Connecting to server…';
-    case 'error':
-      return item.error ?? 'Download failed';
-    case 'completed':
-      return item.fileAvailable === false ? 'File removed from browser storage' : `${hostOf(item.url)} · finished ${formatDate(item.completedAt)}`;
-    case 'paused':
-      return item.receivedBytes > 0 ? `Paused at ${formatBytes(item.receivedBytes)}${item.resumable ? '' : ' · will restart (server can’t resume)'}` : `${hostOf(item.url)} · ready to start`;
-    default:
-      return `${hostOf(item.url)} · waiting for a free slot`;
-  }
+  if (item.status === 'error') return item.error ?? 'Download failed';
+  if (item.status === 'completed' && item.fileAvailable === false) return 'File removed from browser storage';
+  const threads = item.status === 'downloading' ? item.segments.filter(s => s.active).length || item.connections : item.connections;
+  const parts = [CATEGORY_META[item.category].label, `${threads} Thread${threads === 1 ? '' : 's'}`];
+  if (item.status === 'paused' && item.receivedBytes > 0 && !item.resumable) parts.push('will restart (no resume support)');
+  return parts.join(' • ');
+}
+
+function etaText(item: DownloadItem) {
+  if (item.status === 'completed') return 'Finished';
+  if (isActive(item) && item.eta != null) return formatDuration(item.eta);
+  return '--';
 }
 
 function EmptyState({ isEmptyLibrary, onNew, onAddSample }: { isEmptyLibrary: boolean; onNew: () => void; onAddSample: (url: string) => void }) {
@@ -65,7 +64,7 @@ function EmptyState({ isEmptyLibrary, onNew, onAddSample }: { isEmptyLibrary: bo
   return (
     <div className="flex flex-1 items-center justify-center p-10">
       <div className="w-full max-w-lg text-center">
-        <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-600/25">
+        <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-indigo-600 text-white shadow-lg shadow-indigo-600/25">
           <Download className="size-7" />
         </div>
         <h2 className="mt-5 text-xl font-semibold tracking-tight">Start your first download</h2>
@@ -75,9 +74,9 @@ function EmptyState({ isEmptyLibrary, onNew, onAddSample }: { isEmptyLibrary: bo
         <button
           type="button"
           onClick={onNew}
-          className="mt-5 inline-flex h-10 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white shadow-sm shadow-blue-600/25 hover:bg-blue-500"
+          className="mt-5 inline-flex h-10 items-center gap-2 rounded-lg bg-gradient-to-r from-indigo-500 to-violet-600 px-4 text-sm font-semibold text-white shadow-md shadow-indigo-600/30 hover:from-indigo-400 hover:to-violet-500"
         >
-          <Download className="size-4" /> New download
+          <Download className="size-4" /> Add New URL
         </button>
         <div className="mt-8 rounded-2xl border border-zinc-200 bg-white p-2 text-left dark:border-zinc-800 dark:bg-zinc-900">
           <div className="flex items-center gap-1.5 px-2 pt-1 pb-2 text-xs font-medium text-zinc-500">
@@ -117,20 +116,22 @@ export const DownloadList: React.FC<DownloadListProps> = ({
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
-      <div className={cn(GRID, 'h-9 shrink-0 border-b border-zinc-200 px-5 text-[11px] font-medium tracking-wide text-zinc-500 uppercase dark:border-zinc-800/80')}>
-        <HeaderCell label="Name" sortKey="filename" sort={sort} onSort={onSort} />
-        <HeaderCell label="Size" sortKey="totalBytes" sort={sort} onSort={onSort} align="right" />
-        <HeaderCell label="Progress" sortKey="progress" sort={sort} onSort={onSort} />
-        <HeaderCell label="Speed" sortKey="speed" sort={sort} onSort={onSort} align="right" />
-        <HeaderCell label="Added" sortKey="addedAt" sort={sort} onSort={onSort} align="right" />
+      <div className={cn(GRID, 'h-10 shrink-0 px-8 text-[11px] font-semibold tracking-wider text-zinc-500 uppercase')}>
+        <HeaderCell label="File Name" sortKey="filename" sort={sort} onSort={onSort} />
+        <HeaderCell label="Size" sortKey="totalBytes" sort={sort} onSort={onSort} />
+        <HeaderCell label="Progress / Status" sortKey="progress" sort={sort} onSort={onSort} />
+        <HeaderCell label="Speed" sortKey="speed" sort={sort} onSort={onSort} />
+        <HeaderCell label="ETA" sort={sort} onSort={onSort} />
+        <HeaderCell label="Actions" sort={sort} onSort={onSort} align="center" />
       </div>
-      <div className="flex-1 overflow-y-auto" role="listbox" aria-multiselectable>
+      <div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4" role="listbox" aria-multiselectable>
         {items.map(item => {
           const isSelected = selected.has(item.id);
           const progress = progressOf(item);
           const canPause = isActive(item) || item.status === 'queued';
-          const ActionIcon = canPause ? Pause : item.status === 'completed' ? Download : item.status === 'error' ? RotateCcw : Play;
+          const ActionIcon = canPause ? Pause : item.status === 'completed' ? FolderOpen : item.status === 'error' ? RotateCcw : Play;
           const actionLabel = canPause ? 'Pause' : item.status === 'completed' ? 'Save file' : item.status === 'error' ? 'Retry' : 'Resume';
+          const { icon: CatIcon } = CATEGORY_META[item.category];
           return (
             <div
               key={item.id}
@@ -141,60 +142,55 @@ export const DownloadList: React.FC<DownloadListProps> = ({
               onContextMenu={e => onContextMenu(e, item)}
               className={cn(
                 GRID,
-                'group relative cursor-default border-b border-zinc-100 px-5 py-2.5 transition-colors dark:border-zinc-900',
-                isSelected ? 'bg-blue-50 dark:bg-blue-500/10' : 'hover:bg-zinc-100/70 dark:hover:bg-zinc-900/70',
+                'group cursor-default rounded-xl border px-4 py-3 transition-colors',
+                isSelected
+                  ? 'border-indigo-500/60 bg-indigo-50 dark:border-indigo-500/50 dark:bg-indigo-500/10'
+                  : 'border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900/60 dark:hover:border-zinc-700 dark:hover:bg-zinc-900',
               )}
             >
-              {isSelected && <span className="absolute inset-y-0 left-0 w-0.5 bg-blue-600" />}
-              <div className="relative flex min-w-0 items-center gap-3">
-                <FileIcon category={item.category} />
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-300">
+                  <CatIcon className="size-[18px]" strokeWidth={1.8} />
+                </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate text-[13px] font-medium" title={item.filename}>
-                      {item.filename}
-                    </span>
-                    {item.status !== 'downloading' && item.status !== 'completed' && <StatusPill status={item.status} />}
+                  <div className="truncate text-[13px] font-semibold" title={item.filename}>
+                    {item.filename}
                   </div>
-                  <div className={cn('mt-0.5 truncate text-xs', item.status === 'error' ? 'text-red-600 dark:text-red-400' : 'text-zinc-500 dark:text-zinc-400')}>
+                  <div className={cn('mt-0.5 truncate text-xs', item.status === 'error' ? 'text-red-600 dark:text-red-400' : 'text-zinc-500 dark:text-zinc-400')} title={item.status === 'error' ? item.error : hostOf(item.url)}>
                     {secondaryLine(item)}
                   </div>
                 </div>
-                <div className="absolute top-1/2 right-0 flex -translate-y-1/2 items-center gap-0.5 rounded-lg bg-white/95 p-0.5 opacity-0 shadow-xs ring-1 ring-zinc-200 transition-opacity group-hover:opacity-100 dark:bg-zinc-900/95 dark:ring-zinc-700">
-                  <IconButton
-                    icon={ActionIcon}
-                    label={actionLabel}
-                    size="sm"
-                    onMouseDown={e => e.stopPropagation()}
-                    onClick={() => onPrimaryAction(item)}
-                    disabled={item.status === 'completed' && item.fileAvailable === false}
-                  />
-                  <IconButton
-                    icon={MoreHorizontal}
-                    label="More actions"
-                    size="sm"
-                    onMouseDown={e => e.stopPropagation()}
-                    onClick={e => onContextMenu(e, item)}
-                  />
+              </div>
+              <div className="tabular text-xs font-medium text-zinc-700 dark:text-zinc-200">{formatBytes(item.totalBytes)}</div>
+              <div className="min-w-0">
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <StatusPill status={item.status} />
+                  <span className="tabular text-xs font-semibold text-zinc-700 dark:text-zinc-200">{progress == null ? '—' : `${Math.floor(progress)}%`}</span>
                 </div>
-              </div>
-              <div className="tabular text-right text-xs text-zinc-600 dark:text-zinc-300">{formatBytes(item.totalBytes)}</div>
-              <div className="flex items-center gap-2.5">
                 <ProgressBar item={item} />
-                <span className="tabular w-10 shrink-0 text-right text-xs font-medium text-zinc-600 dark:text-zinc-300">
-                  {progress == null ? '—' : `${Math.floor(progress)}%`}
-                </span>
               </div>
-              <div className="tabular text-right text-xs">
-                {isActive(item) ? (
-                  <>
-                    <div className="font-medium text-zinc-800 dark:text-zinc-100">{formatSpeed(item.speed)}</div>
-                    <div className="text-zinc-500">{formatDuration(item.eta)} left</div>
-                  </>
-                ) : (
-                  <span className="text-zinc-400">—</span>
-                )}
+              <div className={cn('tabular text-xs font-semibold', isActive(item) ? 'text-cyan-600 dark:text-cyan-400' : 'font-normal text-zinc-500')}>
+                {isActive(item) ? formatSpeed(item.speed) : '0 KB/s'}
               </div>
-              <div className="tabular text-right text-xs text-zinc-500">{formatDate(item.addedAt)}</div>
+              <div className="tabular text-xs text-zinc-600 dark:text-zinc-300">{etaText(item)}</div>
+              <div className="flex items-center justify-center gap-1">
+                <IconButton
+                  icon={ActionIcon}
+                  label={actionLabel}
+                  size="sm"
+                  className="border border-zinc-200 dark:border-zinc-700"
+                  onMouseDown={e => e.stopPropagation()}
+                  onClick={() => onPrimaryAction(item)}
+                  disabled={item.status === 'completed' && item.fileAvailable === false}
+                />
+                <IconButton
+                  icon={MoreHorizontal}
+                  label="More actions"
+                  size="sm"
+                  onMouseDown={e => e.stopPropagation()}
+                  onClick={e => onContextMenu(e, item)}
+                />
+              </div>
             </div>
           );
         })}

@@ -11,19 +11,24 @@ import { TopBar } from './components/TopBar';
 import { DownloadList } from './components/DownloadList';
 import { DetailsPanel } from './components/DetailsPanel';
 import { StatusBar } from './components/StatusBar';
+import { StatCards } from './components/StatCards';
 import { Toaster } from './components/Toaster';
 import { NewDownloadDialog } from './components/NewDownloadDialog';
 import { SettingsDialog } from './components/SettingsDialog';
 import { ContextMenu, type MenuEntry } from './components/ContextMenu';
-import { CATEGORY_META, Button, isActive, progressOf } from './components/ui';
+import { Button, isActive, progressOf } from './components/ui';
 
-const VIEW_TITLES: Record<LibraryView, string> = {
-  all: 'All downloads',
-  downloading: 'Downloading',
-  unfinished: 'Paused & queued',
-  completed: 'Completed',
-  failed: 'Failed',
-};
+const TRANSFER_KEY = 'sdp_transfer_today';
+const todayKey = () => new Date().toDateString();
+
+function loadTransferredToday(): number {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TRANSFER_KEY) ?? 'null') as { day: string; bytes: number } | null;
+    return saved && saved.day === todayKey() ? saved.bytes : 0;
+  } catch {
+    return 0;
+  }
+}
 
 const isTyping = (target: EventTarget | null) =>
   target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
@@ -69,6 +74,7 @@ export const App: React.FC = () => {
   const [menu, setMenu] = useState<{ x: number; y: number; item: DownloadItem } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [speedHistory, setSpeedHistory] = useState<number[]>([]);
+  const [transferredToday, setTransferredToday] = useState(loadTransferredToday);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => soundEffects.setSoundEnabled(settings.sound), [settings.sound]);
@@ -94,9 +100,28 @@ export const App: React.FC = () => {
   }, [settings.notifications]);
 
   useEffect(() => {
+    const received = new Map(downloadManager.getSnapshot().map(i => [i.id, i.receivedBytes]));
+    let day = todayKey();
+    let bytes = loadTransferredToday();
     const t = window.setInterval(() => {
-      const total = downloadManager.getSnapshot().reduce((n, i) => n + (isActive(i) ? i.speed : 0), 0);
+      const snapshot = downloadManager.getSnapshot();
+      const total = snapshot.reduce((n, i) => n + (isActive(i) ? i.speed : 0), 0);
       setSpeedHistory(h => [...h.slice(-59), total]);
+
+      if (todayKey() !== day) {
+        day = todayKey();
+        bytes = 0;
+      }
+      let delta = 0;
+      for (const i of snapshot) {
+        delta += Math.max(0, i.receivedBytes - (received.get(i.id) ?? 0));
+        received.set(i.id, i.receivedBytes);
+      }
+      if (delta > 0) {
+        bytes += delta;
+        setTransferredToday(bytes);
+        localStorage.setItem(TRANSFER_KEY, JSON.stringify({ day, bytes }));
+      }
     }, 1000);
     return () => window.clearInterval(t);
   }, []);
@@ -126,10 +151,7 @@ export const App: React.FC = () => {
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     const filtered = items.filter(
-      i =>
-        VIEW_FILTERS[view](i) &&
-        (!category || i.category === category) &&
-        (!q || i.filename.toLowerCase().includes(q) || i.url.toLowerCase().includes(q)),
+      i => VIEW_FILTERS[view](i) && (!category || i.category === category) && (!q || i.filename.toLowerCase().includes(q) || i.url.toLowerCase().includes(q)),
     );
     return sortItems(filtered, sort);
   }, [items, view, category, search, sort]);
@@ -282,93 +304,96 @@ export const App: React.FC = () => {
     ];
   };
 
-  const title = category ? CATEGORY_META[category].label : VIEW_TITLES[view];
+  const totalSpeed = items.reduce((n, i) => n + (isActive(i) ? i.speed : 0), 0);
+  const activeThreads = items.reduce((n, i) => n + (isActive(i) ? i.segments.filter(s => s.active).length : 0), 0);
+  const clearFinished = () => {
+    void downloadManager.clearCompleted();
+    toast('Cleared finished downloads');
+  };
 
   return (
-    <div className="flex h-full overflow-hidden">
-      <Sidebar
-        items={items}
-        view={view}
-        category={category}
-        onView={setView}
-        onCategory={setCategory}
+    <div className="flex h-full flex-col overflow-hidden">
+      <TopBar
+        search={search}
+        onSearch={setSearch}
+        searchRef={searchRef}
+        settings={settings}
+        onUpdateSettings={updateSettings}
+        dark={dark}
+        canStartAll={items.some(i => ['paused', 'error', 'queued'].includes(i.status))}
+        canPauseAll={items.some(i => isActive(i) || i.status === 'queued')}
+        onStartAll={() => downloadManager.startAll()}
+        onPauseAll={() => downloadManager.pauseAll()}
+        canClearFinished={items.some(i => i.status === 'completed')}
+        onClearFinished={clearFinished}
         onNew={() => openNew()}
         onOpenSettings={() => setSettingsOpen(true)}
-        speedHistory={speedHistory}
       />
 
-      <main className="flex min-w-0 flex-1 flex-col">
-        <TopBar
-          title={title}
-          search={search}
-          onSearch={setSearch}
-          searchRef={searchRef}
-          settings={settings}
-          onUpdateSettings={updateSettings}
-          dark={dark}
-          canStartAll={items.some(i => ['paused', 'error', 'queued'].includes(i.status))}
-          canPauseAll={items.some(i => isActive(i) || i.status === 'queued')}
-          onStartAll={() => downloadManager.startAll()}
-          onPauseAll={() => downloadManager.pauseAll()}
-        />
+      <div className="flex min-h-0 flex-1">
+        <Sidebar items={items} view={view} category={category} settings={settings} onView={setView} onCategory={setCategory} />
 
-        {selected.size > 1 && (
-          <div className="animate-fade-in flex h-11 shrink-0 items-center gap-2 border-b border-blue-500/20 bg-blue-50 px-5 text-sm dark:bg-blue-500/10">
-            <span className="font-medium">{selected.size} selected</span>
-            <div className="ml-auto flex gap-1.5">
-              <Button size="sm" icon={Play} onClick={() => selectedItems.forEach(i => i.status !== 'completed' && downloadManager.start(i.id))}>
-                Resume
-              </Button>
-              <Button size="sm" icon={Pause} onClick={() => selectedItems.forEach(i => downloadManager.pause(i.id))}>
-                Pause
-              </Button>
-              <Button size="sm" icon={Trash2} onClick={() => removeItems(selectedItems)}>
-                Remove
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
-                Clear
-              </Button>
+        <main className="flex min-w-0 flex-1 flex-col">
+          <StatCards speed={totalSpeed} threads={activeThreads} transferredToday={transferredToday} speedHistory={speedHistory} />
+
+          {selected.size > 1 && (
+            <div className="animate-fade-in flex h-11 shrink-0 items-center gap-2 mx-4 mb-2 rounded-xl border border-indigo-500/30 bg-indigo-50 px-4 text-sm dark:bg-indigo-500/10">
+              <span className="font-medium">{selected.size} selected</span>
+              <div className="ml-auto flex gap-1.5">
+                <Button size="sm" icon={Play} onClick={() => selectedItems.forEach(i => i.status !== 'completed' && downloadManager.start(i.id))}>
+                  Resume
+                </Button>
+                <Button size="sm" icon={Pause} onClick={() => selectedItems.forEach(i => downloadManager.pause(i.id))}>
+                  Pause
+                </Button>
+                <Button size="sm" icon={Trash2} onClick={() => removeItems(selectedItems)}>
+                  Remove
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+                  Clear
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
-
-        <div className="flex min-h-0 flex-1">
-          <DownloadList
-            items={visible}
-            selected={selected}
-            sort={sort}
-            onSort={handleSort}
-            onSelect={handleSelect}
-            onOpen={id => {
-              const item = items.find(i => i.id === id);
-              if (item) void primaryAction(item);
-            }}
-            onPrimaryAction={primaryAction}
-            onContextMenu={(e, item) => {
-              e.preventDefault();
-              if (!selected.has(item.id)) {
-                setSelected(new Set([item.id]));
-                setAnchor(item.id);
-              }
-              setMenu({ x: e.clientX, y: e.clientY, item });
-            }}
-            onNew={() => openNew()}
-            onAddSample={url => openNew(url)}
-            isEmptyLibrary={items.length === 0}
-          />
-          {detailsItem && (
-            <DetailsPanel
-              item={detailsItem}
-              onClose={() => setDetailsId(null)}
-              onPrimaryAction={primaryAction}
-              onRestart={item => downloadManager.restart(item.id)}
-              onRemove={item => removeItems([item])}
-            />
           )}
-        </div>
 
-        <StatusBar items={items} settings={settings} />
-      </main>
+          <div className="flex min-h-0 flex-1">
+            <DownloadList
+              items={visible}
+              selected={selected}
+              sort={sort}
+              onSort={handleSort}
+              onSelect={handleSelect}
+              onOpen={id => {
+                const item = items.find(i => i.id === id);
+                if (item) void primaryAction(item);
+              }}
+              onPrimaryAction={primaryAction}
+              onContextMenu={(e, item) => {
+                e.preventDefault();
+                if (!selected.has(item.id)) {
+                  setSelected(new Set([item.id]));
+                  setAnchor(item.id);
+                }
+                setMenu({ x: e.clientX, y: e.clientY, item });
+              }}
+              onNew={() => openNew()}
+              onAddSample={url => openNew(url)}
+              isEmptyLibrary={items.length === 0}
+            />
+            {detailsItem && (
+              <DetailsPanel
+                item={detailsItem}
+                onClose={() => setDetailsId(null)}
+                onPrimaryAction={primaryAction}
+                onRestart={item => downloadManager.restart(item.id)}
+                onRemove={item => removeItems([item])}
+              />
+            )}
+          </div>
+        </main>
+      </div>
+
+      <StatusBar items={items} settings={settings} />
 
       {menu && <ContextMenu x={menu.x} y={menu.y} entries={menuEntries(menu.item)} onClose={() => setMenu(null)} />}
 
@@ -392,10 +417,7 @@ export const App: React.FC = () => {
         settings={settings}
         onUpdate={updateSettings}
         onClose={() => setSettingsOpen(false)}
-        onClearCompleted={() => {
-          void downloadManager.clearCompleted();
-          toast('Cleared completed downloads');
-        }}
+        onClearCompleted={clearFinished}
       />
 
       {dragging && (

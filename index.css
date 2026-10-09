@@ -5,6 +5,23 @@
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Navy-tinted neutrals and an indigo accent (Shuja Download Manager palette). */
+  --color-zinc-50: #f7f8fc;
+  --color-zinc-100: #eef1f8;
+  --color-zinc-200: #dfe4ef;
+  --color-zinc-300: #c5cddd;
+  --color-zinc-400: #8f9bb3;
+  --color-zinc-500: #67738c;
+  --color-zinc-600: #4a5570;
+  --color-zinc-700: #2c3650;
+  --color-zinc-800: #1c2438;
+  --color-zinc-900: #111829;
+  --color-zinc-950: #0a0f1d;
+  --color-blue-400: #8b8ff9;
+  --color-blue-500: #6c6ff5;
+  --color-blue-600: #5b5ef0;
+  --color-blue-700: #4a4cd8;
 }
 
 html,
@@ -50,6 +67,13 @@ body {
 }
 
 .progress-active {
+  position: relative;
+}
+
+.progress-active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
   background-image: linear-gradient(
     -45deg,
     rgb(255 255 255 / 0.18) 25%,
