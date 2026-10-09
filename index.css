@@ -1,142 +1,117 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
-:root {
-  --idm-font: 'Segoe UI', -apple-system, BlinkMacSystemFont, Tahoma, Geneva, sans-serif;
-  --win-bg: #f0f0f0;
-  --win-surface: #ffffff;
-  --win-border: #a0a0a0;
-  --win-border-light: #dfdfdf;
-  --win-header-blue: #005a9e;
-  --idm-green: #107c41;
-  --idm-blue: #0078d4;
-  --idm-toolbar-bg: linear-gradient(180deg, #fbfbfb 0%, #e8e8e8 50%, #dadada 100%);
-  --idm-toolbar-hover: linear-gradient(180deg, #e5f1fb 0%, #cbe3f7 100%);
-  --idm-toolbar-active: linear-gradient(180deg, #c4e0f5 0%, #9bc9eb 100%);
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Navy-tinted neutrals and an indigo accent (Shuja Download Manager palette). */
+  --color-zinc-50: #f7f8fc;
+  --color-zinc-100: #eef1f8;
+  --color-zinc-200: #dfe4ef;
+  --color-zinc-300: #c5cddd;
+  --color-zinc-400: #8f9bb3;
+  --color-zinc-500: #67738c;
+  --color-zinc-600: #4a5570;
+  --color-zinc-700: #2c3650;
+  --color-zinc-800: #1c2438;
+  --color-zinc-900: #111829;
+  --color-zinc-950: #0a0f1d;
+  --color-blue-400: #8b8ff9;
+  --color-blue-500: #6c6ff5;
+  --color-blue-600: #5b5ef0;
+  --color-blue-700: #4a4cd8;
 }
 
-.dark-theme {
-  --win-bg: #1e1e1e;
-  --win-surface: #252526;
-  --win-border: #3c3c3c;
-  --win-border-light: #2d2d30;
-  --win-header-blue: #1b5e94;
-  --idm-toolbar-bg: linear-gradient(180deg, #2d2d30 0%, #252526 100%);
-  --idm-toolbar-hover: #333333;
-  --idm-toolbar-active: #3e3e42;
+html,
+body,
+#root {
+  height: 100%;
 }
 
 body {
-  font-family: var(--idm-font);
-  user-select: none;
-  overflow: hidden;
-  margin: 0;
-  padding: 0;
-  background-color: #0b0f19;
+  @apply bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
+  font-feature-settings: 'cv11', 'ss01';
 }
 
-/* Custom IDM Windows Styled Scrollbars */
-::-webkit-scrollbar {
-  width: 14px;
-  height: 14px;
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(161 161 170 / 0.4) transparent;
 }
 
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-left: 1px solid #dcdcdc;
+.tabular {
+  font-variant-numeric: tabular-nums;
 }
 
-.dark-theme ::-webkit-scrollbar-track {
-  background: #1e1e1e;
-  border-left: 1px solid #333333;
+@keyframes indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
 }
 
-::-webkit-scrollbar-thumb {
-  background: #cdcdcd;
-  border: 2px solid #f1f1f1;
+.progress-indeterminate {
+  animation: indeterminate 1.2s ease-in-out infinite;
 }
 
-.dark-theme ::-webkit-scrollbar-thumb {
-  background: #444444;
-  border: 2px solid #1e1e1e;
+@keyframes shimmer {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 32px 0;
+  }
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #a6a6a6;
+.progress-active {
+  position: relative;
 }
 
-/* Authentic IDM Segment Striped Progress Bar */
-.idm-progress-striped {
-  background-size: 20px 20px;
+.progress-active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
   background-image: linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 0.25) 25%,
+    -45deg,
+    rgb(255 255 255 / 0.18) 25%,
     transparent 25%,
     transparent 50%,
-    rgba(255, 255, 255, 0.25) 50%,
-    rgba(255, 255, 255, 0.25) 75%,
+    rgb(255 255 255 / 0.18) 50%,
+    rgb(255 255 255 / 0.18) 75%,
     transparent 75%,
     transparent
   );
-  animation: idm-progress-stripes 1s linear infinite;
+  background-size: 32px 32px;
+  animation: shimmer 1s linear infinite;
 }
 
-@keyframes idm-progress-stripes {
+@keyframes pop-in {
   from {
-    background-position: 20px 0;
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
   }
   to {
-    background-position: 0 0;
+    opacity: 1;
+    transform: none;
   }
 }
 
-/* Multi-Connection Segment Display */
-.idm-segment-block {
-  position: relative;
-  overflow: hidden;
-  border-right: 1px solid rgba(0, 0, 0, 0.2);
+.animate-pop-in {
+  animation: pop-in 160ms ease-out;
 }
 
-.idm-segment-block::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-  transform: translateX(-100%);
-  animation: idm-shimmer 1.8s infinite;
-}
-
-@keyframes idm-shimmer {
-  100% {
-    transform: translateX(100%);
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
-/* Classic Button Bevels */
-.btn-win-bevel {
-  border-top: 1px solid #ffffff;
-  border-left: 1px solid #ffffff;
-  border-right: 1px solid #707070;
-  border-bottom: 1px solid #707070;
-}
-
-.btn-win-bevel:active {
-  border-top: 1px solid #707070;
-  border-left: 1px solid #707070;
-  border-right: 1px solid #ffffff;
-  border-bottom: 1px solid #ffffff;
-}
-
-/* Glowing Pulse for active downloads */
-@keyframes pulse-soft {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-}
-
-.animate-pulse-soft {
-  animation: pulse-soft 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+.animate-fade-in {
+  animation: fade-in 140ms ease-out;
 }

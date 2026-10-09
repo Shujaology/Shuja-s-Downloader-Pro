@@ -1,4 +1,4 @@
-// Web Audio API based sound synthesizer for authentic IDM sound effects
+// Small Web Audio sound cues for start, completion and errors.
 
 class SoundEffectsService {
   private ctx: AudioContext | null = null;
@@ -24,7 +24,7 @@ class SoundEffectsService {
     }
   }
 
-  // Iconic IDM download complete melodic chime
+  // Completion chime
   public playComplete() {
     const ctx = this.getAudioContext();
     if (!ctx) return;
@@ -44,7 +44,7 @@ class SoundEffectsService {
       osc1.start(now);
       osc1.stop(now + 0.25);
 
-      // Note 2: B5 (high joyous IDM chime)
+      // Note 2: B5
       const osc2 = ctx.createOscillator();
       const gain2 = ctx.createGain();
       osc2.type = 'triangle';
@@ -60,7 +60,7 @@ class SoundEffectsService {
     }
   }
 
-  // IDM button click / download start tone
+  // Start tone
   public playStart() {
     const ctx = this.getAudioContext();
     if (!ctx) return;
@@ -83,7 +83,7 @@ class SoundEffectsService {
     }
   }
 
-  // IDM error / stop tone
+  // Error tone
   public playError() {
     const ctx = this.getAudioContext();
     if (!ctx) return;

@@ -1,20 +1,37 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Shuja's Downloader Pro
 
-# Run and deploy your AI Studio app
+A fast, multi-connection download manager that runs entirely in the browser.
 
-This contains everything you need to run your app locally.
+- **Parallel ranged downloads**: files are split across up to 32 connections when the server supports HTTP range requests, with automatic fallback to a single stream.
+- **Pause and resume, even after a reload**: received bytes are stored in IndexedDB, so interrupted downloads come back paused at the same point.
+- **Bandwidth limit** across all downloads, a download queue with configurable concurrency, and a start/stop scheduler.
+- **Live connection map** showing each segment's progress and speed, plus real speed and time-left figures.
+- Light, dark and system themes, search, sorting, multi-select, drag-and-drop or paste links anywhere, keyboard shortcuts, and desktop notifications.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1rnEX2FvDIewr-3pKTqHF0w5AdHZ2f-CV
+## Limitations
 
-## Run Locally
+Downloads use `fetch`, so the remote server must allow cross-origin requests (CORS). Links to servers that don't will be rejected when you add them. Video sites such as YouTube need a server-side extractor and aren't supported.
 
-**Prerequisites:**  Node.js
+## Development
 
+Requires Node.js 20+.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+```bash
+npm install
+npm run dev        # http://localhost:3000
+npm run typecheck
+npm test
+npm run build      # type-checks, then builds to dist/
+```
+
+## Keyboard shortcuts
+
+| Keys | Action |
+| --- | --- |
+| `N` | New download |
+| `Ctrl` + `K` | Search |
+| `Space` | Pause / resume selected |
+| `Del` | Remove selected |
+| `Ctrl` + `A` | Select all |
+| `Ctrl` + `V` | Paste links to download |
+| `,` | Settings |

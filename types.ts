@@ -1,74 +1,72 @@
-export type DownloadCategory = 'all' | 'compressed' | 'documents' | 'music' | 'programs' | 'video';
-export type DownloadQueue = 'all' | 'main' | 'sync';
-export type DownloadFilter = 'all' | 'unfinished' | 'finished' | 'grabber';
-export type DownloadStatus = 'downloading' | 'paused' | 'completed' | 'error' | 'queued' | 'connecting';
+export type Category = 'video' | 'music' | 'documents' | 'compressed' | 'programs' | 'images' | 'other';
 
-export interface FormatOption {
-  id: string;
-  quality: string;
-  container: string;
-  type: 'video' | 'audio';
-  size: string;
-}
+export type DownloadStatus = 'queued' | 'connecting' | 'downloading' | 'paused' | 'completed' | 'error';
 
-export interface AnalysisResult {
-  title: string;
-  thumbnailUrl: string;
-  formats: FormatOption[];
-  summary: string;
-}
+export type LibraryView = 'all' | 'downloading' | 'unfinished' | 'completed' | 'failed';
 
-export interface DownloadSegment {
+export interface Segment {
   id: number;
-  startByte: number;
-  endByte: number;
-  downloadedBytes: number;
-  progress: number; // 0 to 100
-  currentSpeed: string;
-  status: 'active' | 'done' | 'idle';
+  /** First byte offset (inclusive). */
+  start: number;
+  /** Last byte offset (inclusive), or -1 when the total size is unknown. */
+  end: number;
+  received: number;
+  active: boolean;
+  speed: number;
 }
 
 export interface DownloadItem {
   id: string;
-  title: string;
   url: string;
-  category: 'compressed' | 'documents' | 'music' | 'programs' | 'video';
-  queue?: 'main' | 'sync';
-  format?: FormatOption;
-  progress: number; // 0 to 100
-  totalBytes: number;
-  downloadedBytes: number;
-  speed: string; // e.g. "12.4 MB/s"
-  speedBps: number;
-  timeLeft: string; // e.g. "00:00:14"
+  filename: string;
+  category: Category;
+  mimeType?: string;
+  totalBytes: number | null;
+  receivedBytes: number;
   status: DownloadStatus;
-  dateAdded: string;
-  savePath: string;
-  connections: number; // default 8
-  segments: DownloadSegment[];
-  summary?: string;
-  thumbnailUrl?: string;
-  fileBlobUrl?: string;
-  fileBlob?: Blob;
-  description?: string;
-  resumeSupported: boolean;
+  error?: string;
+  /** Server honours HTTP range requests, so the file can be split and resumed. */
+  resumable: boolean;
+  probed: boolean;
+  connections: number;
+  segments: Segment[];
+  speed: number;
+  eta: number | null;
+  addedAt: number;
+  startedAt?: number;
+  completedAt?: number;
+  /** Active download time in ms, used for average speed. */
+  elapsedMs: number;
+  /** Completed file bytes are still available in browser storage. */
+  fileAvailable?: boolean;
 }
 
-export interface IDMSettings {
-  theme: 'windows-classic' | 'windows-dark';
-  saveDirectory: string;
-  categoriesDirs: {
-    compressed: string;
-    documents: string;
-    music: string;
-    programs: string;
-    video: string;
-  };
-  maxConnections: number; // 1, 4, 8, 16, 32
-  speedLimiterEnabled: boolean;
-  speedLimitKbps: number; // in KB/s
-  soundEnabled: boolean;
-  autoStartDownloads: boolean;
-  showFloatingVideoBar: boolean;
-  maxSimultaneousDownloads: number;
+export interface Settings {
+  theme: 'system' | 'light' | 'dark';
+  connections: number;
+  maxConcurrent: number;
+  speedLimitEnabled: boolean;
+  speedLimitKBps: number;
+  autoSave: boolean;
+  notifications: boolean;
+  sound: boolean;
+  scheduleEnabled: boolean;
+  scheduleStart: string;
+  scheduleStop: string;
+}
+
+export interface ProbeResult {
+  url: string;
+  finalUrl: string;
+  filename: string;
+  totalBytes: number | null;
+  resumable: boolean;
+  mimeType?: string;
+}
+
+export type SortKey = 'addedAt' | 'filename' | 'totalBytes' | 'progress' | 'speed';
+
+export interface SortState {
+  key: SortKey;
+  dir: 'asc' | 'desc';
 }

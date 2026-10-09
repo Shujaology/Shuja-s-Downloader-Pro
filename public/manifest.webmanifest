@@ -1,0 +1,10 @@
+{
+  "name": "Shuja's Downloader Pro",
+  "short_name": "Downloader Pro",
+  "description": "Multi-connection download manager with pause/resume, bandwidth limiting and scheduling.",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#09090b",
+  "background_color": "#09090b"
+}
