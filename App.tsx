@@ -1,497 +1,415 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import type {
-  DownloadCategory,
-  DownloadFilter,
-  DownloadQueue,
-  DownloadItem,
-  FormatOption,
-  IDMSettings,
-} from './types';
-import {
-  INITIAL_DOWNLOADS,
-  INITIAL_SETTINGS,
-  detectCategory,
-} from './constants';
-import { IDMMenuBar } from './components/IDMMenuBar';
-import { IDMToolbar } from './components/IDMToolbar';
-import { IDMSidebar } from './components/IDMSidebar';
-import { IDMDownloadTable } from './components/IDMDownloadTable';
-import { IDMStatusBar } from './components/IDMStatusBar';
-import { AddUrlModal } from './components/AddUrlModal';
-import { DownloadInfoModal } from './components/DownloadInfoModal';
-import { ActiveDownloadModal } from './components/ActiveDownloadModal';
-import { DownloadCompleteModal } from './components/DownloadCompleteModal';
-import { OptionsModal } from './components/OptionsModal';
-import { SchedulerModal } from './components/SchedulerModal';
-import { SiteGrabberModal } from './components/SiteGrabberModal';
-import { AboutModal } from './components/AboutModal';
-import { MediaSnifferModal } from './components/MediaSnifferModal';
-import { downloadEngine } from './services/downloadEngine';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Copy, Download, ExternalLink, Link2, Pause, Play, RotateCcw, Trash2 } from 'lucide-react';
+import type { Category, DownloadItem, LibraryView, SortKey, SortState } from './types';
+import { downloadManager } from './services/downloadManager';
 import { soundEffects } from './services/soundEffects';
-import { MonitorPlay } from 'lucide-react';
+import { toast } from './services/toast';
+import { useDownloads, useResolvedTheme, useSettings } from './hooks/useStores';
+import { extractUrls } from './lib/format';
+import { Sidebar, VIEW_FILTERS } from './components/Sidebar';
+import { TopBar } from './components/TopBar';
+import { DownloadList } from './components/DownloadList';
+import { DetailsPanel } from './components/DetailsPanel';
+import { StatusBar } from './components/StatusBar';
+import { Toaster } from './components/Toaster';
+import { NewDownloadDialog } from './components/NewDownloadDialog';
+import { SettingsDialog } from './components/SettingsDialog';
+import { ContextMenu, type MenuEntry } from './components/ContextMenu';
+import { CATEGORY_META, Button, isActive, progressOf } from './components/ui';
+
+const VIEW_TITLES: Record<LibraryView, string> = {
+  all: 'All downloads',
+  downloading: 'Downloading',
+  unfinished: 'Paused & queued',
+  completed: 'Completed',
+  failed: 'Failed',
+};
+
+const isTyping = (target: EventTarget | null) =>
+  target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+
+function sortItems(items: DownloadItem[], sort: SortState) {
+  const value = (i: DownloadItem): number | string => {
+    switch (sort.key) {
+      case 'filename':
+        return i.filename.toLowerCase();
+      case 'totalBytes':
+        return i.totalBytes ?? -1;
+      case 'progress':
+        return progressOf(i) ?? -1;
+      case 'speed':
+        return i.speed;
+      default:
+        return i.addedAt;
+    }
+  };
+  return [...items].sort((a, b) => {
+    const va = value(a);
+    const vb = value(b);
+    const cmp = typeof va === 'string' ? va.localeCompare(vb as string) : va - (vb as number);
+    return sort.dir === 'asc' ? cmp : -cmp;
+  });
+}
 
 export const App: React.FC = () => {
-  // Settings with localStorage persistence
-  const [settings, setSettings] = useState<IDMSettings>(() => {
-    try {
-      const saved = localStorage.getItem('sdm_settings');
-      return saved ? { ...INITIAL_SETTINGS, ...JSON.parse(saved) } : INITIAL_SETTINGS;
-    } catch {
-      return INITIAL_SETTINGS;
-    }
-  });
+  const items = useDownloads();
+  const [settings, updateSettings] = useSettings();
+  const dark = useResolvedTheme(settings.theme);
 
-  // Downloads list with localStorage persistence
-  const [downloads, setDownloads] = useState<DownloadItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('sdm_downloads');
-      return saved ? JSON.parse(saved) : INITIAL_DOWNLOADS;
-    } catch {
-      return INITIAL_DOWNLOADS;
-    }
-  });
+  const [view, setView] = useState<LibraryView>('all');
+  const [category, setCategory] = useState<Category | null>(null);
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<SortState>({ key: 'addedAt', dir: 'desc' });
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [anchor, setAnchor] = useState<string | null>(null);
+  const [detailsId, setDetailsId] = useState<string | null>(null);
+  const [newOpen, setNewOpen] = useState(false);
+  const [newText, setNewText] = useState('');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [menu, setMenu] = useState<{ x: number; y: number; item: DownloadItem } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [speedHistory, setSpeedHistory] = useState<number[]>([]);
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  // Selection & Filtering
-  const [selectedId, setSelectedId] = useState<string | null>(() => {
-    return downloads.length > 0 ? downloads[0].id : null;
-  });
-  const [selectedCategory, setSelectedCategory] = useState<DownloadCategory>('all');
-  const [selectedQueue, setSelectedQueue] = useState<DownloadQueue>('all');
-  const [selectedFilter, setSelectedFilter] = useState<DownloadFilter>('all');
+  useEffect(() => soundEffects.setSoundEnabled(settings.sound), [settings.sound]);
 
-  // Modals state
-  const [isAddUrlOpen, setIsAddUrlOpen] = useState(false);
-  const [isDownloadInfoOpen, setIsDownloadInfoOpen] = useState(false);
-  const [candidateUrl, setCandidateUrl] = useState('');
-  const [activeDownloadModalItem, setActiveDownloadModalItem] = useState<DownloadItem | null>(null);
-  const [completedModalItem, setCompletedModalItem] = useState<DownloadItem | null>(null);
-  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
-  const [isSchedulerOpen, setIsSchedulerOpen] = useState(false);
-  const [isGrabberOpen, setIsGrabberOpen] = useState(false);
-  const [isAboutOpen, setIsAboutOpen] = useState(false);
-  const [isMediaSnifferOpen, setIsMediaSnifferOpen] = useState(false);
-  const [isMaximized, setIsMaximized] = useState(false);
-
-  // Sync settings
-  const handleUpdateSettings = useCallback((newSettings: Partial<IDMSettings>) => {
-    setSettings(prev => {
-      const updated = { ...prev, ...newSettings };
-      try {
-        localStorage.setItem('sdm_settings', JSON.stringify(updated));
-      } catch (e) {
-        console.warn(e);
+  useEffect(() => {
+    const notify = (title: string, body: string) => {
+      if (settings.notifications && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+        new Notification(title, { body, icon: '/icon.svg' });
       }
-      if (typeof newSettings.soundEnabled === 'boolean') {
-        soundEffects.setSoundEnabled(newSettings.soundEnabled);
-      }
-      return updated;
-    });
+    };
+    downloadManager.events = {
+      completed: item => {
+        soundEffects.playComplete();
+        toast('Download complete', item.filename, 'success');
+        notify('Download complete', item.filename);
+      },
+      failed: item => {
+        soundEffects.playError();
+        toast(`Couldn't download ${item.filename}`, item.error, 'error');
+        notify('Download failed', `${item.filename}: ${item.error ?? ''}`);
+      },
+    };
+  }, [settings.notifications]);
+
+  useEffect(() => {
+    const t = window.setInterval(() => {
+      const total = downloadManager.getSnapshot().reduce((n, i) => n + (isActive(i) ? i.speed : 0), 0);
+      setSpeedHistory(h => [...h.slice(-59), total]);
+    }, 1000);
+    return () => window.clearInterval(t);
   }, []);
 
-  // Save downloads to localStorage
+  // Scheduler: resume at start time, pause at stop time.
   useEffect(() => {
-    try {
-      localStorage.setItem('sdm_downloads', JSON.stringify(downloads));
-    } catch (e) {
-      console.warn(e);
-    }
-  }, [downloads]);
-
-  // Keep active modal item in sync with downloads state
-  useEffect(() => {
-    if (activeDownloadModalItem) {
-      const live = downloads.find(d => d.id === activeDownloadModalItem.id);
-      if (live) {
-        setActiveDownloadModalItem(live);
+    if (!settings.scheduleEnabled) return;
+    let last = '';
+    const check = () => {
+      const now = new Date();
+      const hhmm = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      if (hhmm === last) return;
+      last = hhmm;
+      if (hhmm === settings.scheduleStart) {
+        downloadManager.startAll();
+        toast('Scheduler started your downloads');
+      } else if (hhmm === settings.scheduleStop) {
+        void downloadManager.pauseAll();
+        toast('Scheduler paused your downloads');
       }
-    }
-  }, [downloads, activeDownloadModalItem?.id]);
-
-  // Start real or simulated download
-  const handleStartDownloadItem = useCallback((targetItem: DownloadItem) => {
-    downloadEngine.startDownload(
-      targetItem,
-      settings.speedLimitKbps,
-      settings.speedLimiterEnabled,
-      // On Progress
-      (updatedItem) => {
-        setDownloads(prev => prev.map(d => (d.id === updatedItem.id ? updatedItem : d)));
-      },
-      // On Complete
-      (finishedItem) => {
-        setDownloads(prev => prev.map(d => (d.id === finishedItem.id ? finishedItem : d)));
-        setCompletedModalItem(finishedItem);
-      }
-    );
-  }, [settings.speedLimitKbps, settings.speedLimiterEnabled]);
-
-  // Trigger from Add URL dialog
-  const handleAddUrlSubmit = (url: string, directDownload: boolean) => {
-    if (directDownload) {
-      // Create and start immediately
-      const category = detectCategory(url);
-      const filename = url.split('/').pop()?.split('?')[0] || 'downloaded_file.bin';
-      const newItem: DownloadItem = {
-        id: `sdm-${Date.now()}`,
-        title: filename,
-        url,
-        category,
-        queue: 'main',
-        progress: 0,
-        totalBytes: 85000000,
-        downloadedBytes: 0,
-        speed: 'Connecting...',
-        speedBps: 0,
-        timeLeft: 'Calculating...',
-        status: 'downloading',
-        dateAdded: new Date().toISOString().replace('T', ' ').slice(0, 16),
-        savePath: `${settings.categoriesDirs[category as keyof typeof settings.categoriesDirs] || settings.saveDirectory}\\${filename}`,
-        connections: settings.maxConnections || 8,
-        segments: downloadEngine.createInitialSegments(85000000, settings.maxConnections || 8),
-        resumeSupported: true,
-      };
-
-      setDownloads(prev => [newItem, ...prev]);
-      setSelectedId(newItem.id);
-      setActiveDownloadModalItem(newItem);
-      handleStartDownloadItem(newItem);
-    } else {
-      // Open Download Info Modal for confirmation & configuration
-      setCandidateUrl(url);
-      setIsDownloadInfoOpen(true);
-    }
-  };
-
-  // Trigger confirmed download from Download Info dialog
-  const handleConfirmDownloadInfo = (info: {
-    title: string;
-    url: string;
-    category: DownloadCategory;
-    savePath: string;
-    totalBytes: number;
-    format?: FormatOption;
-    summary?: string;
-    thumbnailUrl?: string;
-    startImmediately: boolean;
-  }) => {
-    const newItem: DownloadItem = {
-      id: `sdm-${Date.now()}`,
-      title: info.title,
-      url: info.url,
-      category: info.category,
-      queue: 'main',
-      format: info.format,
-      progress: 0,
-      totalBytes: info.totalBytes,
-      downloadedBytes: 0,
-      speed: info.startImmediately ? 'Connecting...' : 'Paused',
-      speedBps: 0,
-      timeLeft: info.startImmediately ? 'Calculating...' : 'Paused',
-      status: info.startImmediately ? 'downloading' : 'paused',
-      dateAdded: new Date().toISOString().replace('T', ' ').slice(0, 16),
-      savePath: info.savePath,
-      connections: settings.maxConnections || 8,
-      segments: downloadEngine.createInitialSegments(info.totalBytes, settings.maxConnections || 8),
-      summary: info.summary,
-      thumbnailUrl: info.thumbnailUrl,
-      resumeSupported: true,
     };
+    const t = window.setInterval(check, 15_000);
+    check();
+    return () => window.clearInterval(t);
+  }, [settings.scheduleEnabled, settings.scheduleStart, settings.scheduleStop]);
 
-    setDownloads(prev => [newItem, ...prev]);
-    setSelectedId(newItem.id);
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const filtered = items.filter(
+      i =>
+        VIEW_FILTERS[view](i) &&
+        (!category || i.category === category) &&
+        (!q || i.filename.toLowerCase().includes(q) || i.url.toLowerCase().includes(q)),
+    );
+    return sortItems(filtered, sort);
+  }, [items, view, category, search, sort]);
 
-    if (info.startImmediately) {
-      setActiveDownloadModalItem(newItem);
-      handleStartDownloadItem(newItem);
+  const detailsItem = items.find(i => i.id === detailsId) ?? null;
+  const selectedItems = items.filter(i => selected.has(i.id));
+
+  useEffect(() => {
+    const ids = new Set(items.map(i => i.id));
+    setSelected(prev => {
+      const next = new Set([...prev].filter(id => ids.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+    if (detailsId && !ids.has(detailsId)) setDetailsId(null);
+  }, [items, detailsId]);
+
+  const openNew = useCallback((text = '') => {
+    setNewText(text);
+    setNewOpen(true);
+  }, []);
+
+  const primaryAction = useCallback(async (item: DownloadItem) => {
+    if (isActive(item) || item.status === 'queued') return downloadManager.pause(item.id);
+    if (item.status === 'completed') {
+      const ok = await downloadManager.saveToDisk(item.id);
+      if (!ok) toast('File is no longer in browser storage', 'Restart the download to get it again.', 'error');
+      return;
     }
-  };
+    downloadManager.start(item.id);
+  }, []);
 
-  // Selected item helpers
-  const selectedItem = downloads.find(d => d.id === selectedId) || null;
-  const canResume = !!selectedItem && (selectedItem.status === 'paused' || selectedItem.status === 'error' || selectedItem.status === 'queued');
-  const canStop = !!selectedItem && (selectedItem.status === 'downloading' || selectedItem.status === 'connecting');
-  const hasActiveDownloads = downloads.some(d => d.status === 'downloading');
+  const removeItems = useCallback(async (targets: DownloadItem[]) => {
+    await Promise.all(targets.map(i => downloadManager.remove(i.id)));
+    if (targets.length) toast(targets.length === 1 ? `Removed ${targets[0].filename}` : `Removed ${targets.length} downloads`);
+  }, []);
 
-  const handleResumeSelected = () => {
-    if (selectedItem && canResume) {
-      handleStartDownloadItem(selectedItem);
-    }
-  };
+  const addMany = useCallback((urls: string[], start: boolean) => {
+    urls.forEach(url => downloadManager.addUnprobed(url, start));
+    toast(`Added ${urls.length} download${urls.length === 1 ? '' : 's'}`);
+  }, []);
 
-  const handleStopSelected = () => {
-    if (selectedItem && canStop) {
-      downloadEngine.pauseDownload(selectedItem, (updated) => {
-        setDownloads(prev => prev.map(d => (d.id === updated.id ? updated : d)));
+  const handleSelect = (id: string, e: React.MouseEvent) => {
+    if (e.shiftKey && anchor) {
+      const ids = visible.map(i => i.id);
+      const [a, b] = [ids.indexOf(anchor), ids.indexOf(id)].sort((x, y) => x - y);
+      setSelected(new Set(ids.slice(a, b + 1)));
+    } else if (e.metaKey || e.ctrlKey) {
+      setSelected(prev => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
       });
+      setAnchor(id);
+    } else {
+      setSelected(new Set([id]));
+      setAnchor(id);
+      setDetailsId(id);
     }
   };
 
-  const handleStopAll = () => {
-    downloads.forEach(d => {
-      if (d.status === 'downloading') {
-        downloadEngine.pauseDownload(d, (updated) => {
-          setDownloads(prev => prev.map(item => (item.id === updated.id ? updated : item)));
-        });
+  const handleSort = (key: SortKey) =>
+    setSort(prev => (prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: key === 'filename' ? 'asc' : 'desc' }));
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchRef.current?.focus();
+        return;
       }
-    });
-  };
-
-  const handleDeleteSelected = () => {
-    if (selectedId) {
-      downloadEngine.stopDownload(selectedId);
-      setDownloads(prev => prev.filter(d => d.id !== selectedId));
-      setSelectedId(null);
-      if (activeDownloadModalItem?.id === selectedId) {
-        setActiveDownloadModalItem(null);
+      if (newOpen || settingsOpen || isTyping(e.target)) return;
+      if (e.key === 'n' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        openNew();
+      } else if (e.key === ',') {
+        setSettingsOpen(true);
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        setSelected(new Set(visible.map(i => i.id)));
+      } else if (e.key === 'Escape') {
+        setSelected(new Set());
+        setDetailsId(null);
+      } else if (e.key === ' ' && selectedItems.length) {
+        e.preventDefault();
+        const anyActive = selectedItems.some(i => isActive(i) || i.status === 'queued');
+        selectedItems.forEach(i => (anyActive ? downloadManager.pause(i.id) : i.status !== 'completed' && downloadManager.start(i.id)));
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedItems.length) {
+        e.preventDefault();
+        void removeItems(selectedItems);
       }
-    }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [newOpen, settingsOpen, visible, selectedItems, openNew, removeItems]);
+
+  // Paste or drop links anywhere
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (newOpen || isTyping(e.target)) return;
+      const text = e.clipboardData?.getData('text') ?? '';
+      if (extractUrls(text).length) {
+        e.preventDefault();
+        openNew(text);
+      }
+    };
+    const onDragOver = (e: DragEvent) => {
+      if (!e.dataTransfer?.types.some(t => t === 'text/uri-list' || t === 'text/plain')) return;
+      e.preventDefault();
+      setDragging(true);
+    };
+    const onDragLeave = (e: DragEvent) => {
+      if (!e.relatedTarget) setDragging(false);
+    };
+    const onDrop = (e: DragEvent) => {
+      e.preventDefault();
+      setDragging(false);
+      const text = e.dataTransfer?.getData('text/uri-list') || e.dataTransfer?.getData('text/plain') || '';
+      const urls = extractUrls(text);
+      if (urls.length) openNew(urls.join('\n'));
+    };
+    window.addEventListener('paste', onPaste);
+    window.addEventListener('dragover', onDragOver);
+    window.addEventListener('dragleave', onDragLeave);
+    window.addEventListener('drop', onDrop);
+    return () => {
+      window.removeEventListener('paste', onPaste);
+      window.removeEventListener('dragover', onDragOver);
+      window.removeEventListener('dragleave', onDragLeave);
+      window.removeEventListener('drop', onDrop);
+    };
+  }, [newOpen, openNew]);
+
+  const menuEntries = (item: DownloadItem): MenuEntry[] => {
+    const active = isActive(item) || item.status === 'queued';
+    return [
+      active
+        ? { label: 'Pause', icon: Pause, onClick: () => downloadManager.pause(item.id), shortcut: 'Space' }
+        : item.status === 'completed'
+          ? { label: 'Save file', icon: Download, onClick: () => primaryAction(item), disabled: item.fileAvailable === false }
+          : { label: item.status === 'error' ? 'Retry' : 'Resume', icon: Play, onClick: () => downloadManager.start(item.id), shortcut: 'Space' },
+      { label: 'Restart from scratch', icon: RotateCcw, onClick: () => downloadManager.restart(item.id) },
+      'separator',
+      { label: 'Copy link', icon: Copy, onClick: () => navigator.clipboard?.writeText(item.url) },
+      { label: 'Open link in new tab', icon: ExternalLink, onClick: () => window.open(item.url, '_blank', 'noopener') },
+      { label: 'Show details', icon: Link2, onClick: () => setDetailsId(item.id) },
+      'separator',
+      { label: 'Remove', icon: Trash2, onClick: () => removeItems([item]), danger: true, shortcut: 'Del' },
+    ];
   };
 
-  const handleDeleteCompleted = () => {
-    setDownloads(prev => prev.filter(d => d.status !== 'completed'));
-  };
-
-  const handleStartQueue = () => {
-    const uncompleted = downloads.filter(d => d.status === 'paused' || d.status === 'queued');
-    const toStart = uncompleted.slice(0, settings.maxSimultaneousDownloads || 3);
-    toStart.forEach(item => {
-      handleStartDownloadItem(item);
-    });
-  };
-
-  const handleStopQueue = () => {
-    handleStopAll();
-  };
-
-  // Filter downloads based on sidebar selection
-  const filteredDownloads = downloads.filter(d => {
-    if (selectedFilter === 'unfinished') {
-      if (d.status === 'completed') return false;
-    } else if (selectedFilter === 'finished') {
-      if (d.status !== 'completed') return false;
-    }
-
-    if (selectedCategory !== 'all') {
-      if (d.category !== selectedCategory) return false;
-    }
-
-    if (selectedQueue !== 'all') {
-      if (d.queue !== selectedQueue) return false;
-    }
-
-    return true;
-  });
+  const title = category ? CATEGORY_META[category].label : VIEW_TITLES[view];
 
   return (
-    <div
-      className={`w-screen h-screen flex flex-col font-sans transition-colors ${
-        settings.theme === 'windows-dark' ? 'dark-theme bg-[#121212]' : 'bg-[#0f172a]'
-      }`}
-    >
-      {/* Main IDM Desktop Application Frame */}
-      <div
-        className={`flex-1 flex flex-col m-0 shadow-2xl overflow-hidden ${
-          isMaximized ? 'w-full h-full' : 'p-0.5'
-        }`}
-      >
-        <div
-          className={`flex-1 flex flex-col border overflow-hidden rounded-xs ${
-            settings.theme === 'windows-dark'
-              ? 'bg-[#1e1e1e] border-[#3c3c3c]'
-              : 'bg-[#f0f0f0] border-[#999999]'
-          }`}
-        >
-          {/* IDM Menu Bar */}
-          <IDMMenuBar
-            settings={settings}
-            onUpdateSettings={handleUpdateSettings}
-            onOpenAddUrl={() => setIsAddUrlOpen(true)}
-            onOpenOptions={() => setIsOptionsOpen(true)}
-            onOpenScheduler={() => setIsSchedulerOpen(true)}
-            onOpenGrabber={() => setIsGrabberOpen(true)}
-            onOpenAbout={() => setIsAboutOpen(true)}
-            onStartQueue={handleStartQueue}
-            onStopQueue={handleStopQueue}
-            onDeleteCompleted={handleDeleteCompleted}
-            onDeleteSelected={handleDeleteSelected}
-            selectedCount={selectedId ? 1 : 0}
-          />
+    <div className="flex h-full overflow-hidden">
+      <Sidebar
+        items={items}
+        view={view}
+        category={category}
+        onView={setView}
+        onCategory={setCategory}
+        onNew={() => openNew()}
+        onOpenSettings={() => setSettingsOpen(true)}
+        speedHistory={speedHistory}
+      />
 
-          {/* IDM Glossy 3D Toolbar */}
-          <IDMToolbar
-            settings={settings}
-            onUpdateSettings={handleUpdateSettings}
-            onAddUrl={() => setIsAddUrlOpen(true)}
-            onResumeSelected={handleResumeSelected}
-            onStopSelected={handleStopSelected}
-            onStopAll={handleStopAll}
-            onDeleteSelected={handleDeleteSelected}
-            onDeleteCompleted={handleDeleteCompleted}
-            onOptions={() => setIsOptionsOpen(true)}
-            onScheduler={() => setIsSchedulerOpen(true)}
-            onStartQueue={handleStartQueue}
-            onStopQueue={handleStopQueue}
-            onGrabber={() => setIsGrabberOpen(true)}
-            canResume={canResume}
-            canStop={canStop}
-            canDelete={!!selectedId}
-            hasActiveDownloads={hasActiveDownloads}
-          />
+      <main className="flex min-w-0 flex-1 flex-col">
+        <TopBar
+          title={title}
+          search={search}
+          onSearch={setSearch}
+          searchRef={searchRef}
+          settings={settings}
+          onUpdateSettings={updateSettings}
+          dark={dark}
+          canStartAll={items.some(i => ['paused', 'error', 'queued'].includes(i.status))}
+          canPauseAll={items.some(i => isActive(i) || i.status === 'queued')}
+          onStartAll={() => downloadManager.startAll()}
+          onPauseAll={() => downloadManager.pauseAll()}
+        />
 
-          {/* Main Area: Left Categories Sidebar + Right Downloads Grid Table */}
-          <div className="flex-1 flex overflow-hidden">
-            <IDMSidebar
-              settings={settings}
-              selectedCategory={selectedCategory}
-              onSelectCategory={setSelectedCategory}
-              selectedQueue={selectedQueue}
-              onSelectQueue={setSelectedQueue}
-              selectedFilter={selectedFilter}
-              onSelectFilter={setSelectedFilter}
-              downloads={downloads}
-            />
-
-            <IDMDownloadTable
-              settings={settings}
-              downloads={filteredDownloads}
-              selectedId={selectedId}
-              onSelectDownload={setSelectedId}
-              onOpenDownloadDetails={(item) => setActiveDownloadModalItem(item)}
-              onResume={(item) => handleStartDownloadItem(item)}
-              onPause={(item) => {
-                downloadEngine.pauseDownload(item, (updated) => {
-                  setDownloads(prev => prev.map(d => (d.id === updated.id ? updated : d)));
-                });
-              }}
-              onDelete={(id) => {
-                downloadEngine.stopDownload(id);
-                setDownloads(prev => prev.filter(d => d.id !== id));
-                if (selectedId === id) setSelectedId(null);
-              }}
-              onRedownload={(item) => {
-                const resetItem: DownloadItem = {
-                  ...item,
-                  progress: 0,
-                  downloadedBytes: 0,
-                  speed: 'Connecting...',
-                  speedBps: 0,
-                  timeLeft: 'Calculating...',
-                  status: 'downloading',
-                  segments: downloadEngine.createInitialSegments(item.totalBytes, item.connections || 8),
-                };
-                setDownloads(prev => prev.map(d => (d.id === item.id ? resetItem : d)));
-                setActiveDownloadModalItem(resetItem);
-                handleStartDownloadItem(resetItem);
-              }}
-            />
+        {selected.size > 1 && (
+          <div className="animate-fade-in flex h-11 shrink-0 items-center gap-2 border-b border-blue-500/20 bg-blue-50 px-5 text-sm dark:bg-blue-500/10">
+            <span className="font-medium">{selected.size} selected</span>
+            <div className="ml-auto flex gap-1.5">
+              <Button size="sm" icon={Play} onClick={() => selectedItems.forEach(i => i.status !== 'completed' && downloadManager.start(i.id))}>
+                Resume
+              </Button>
+              <Button size="sm" icon={Pause} onClick={() => selectedItems.forEach(i => downloadManager.pause(i.id))}>
+                Pause
+              </Button>
+              <Button size="sm" icon={Trash2} onClick={() => removeItems(selectedItems)}>
+                Remove
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+                Clear
+              </Button>
+            </div>
           </div>
+        )}
 
-          {/* IDM Status Bar */}
-          <IDMStatusBar settings={settings} downloads={downloads} />
+        <div className="flex min-h-0 flex-1">
+          <DownloadList
+            items={visible}
+            selected={selected}
+            sort={sort}
+            onSort={handleSort}
+            onSelect={handleSelect}
+            onOpen={id => {
+              const item = items.find(i => i.id === id);
+              if (item) void primaryAction(item);
+            }}
+            onPrimaryAction={primaryAction}
+            onContextMenu={(e, item) => {
+              e.preventDefault();
+              if (!selected.has(item.id)) {
+                setSelected(new Set([item.id]));
+                setAnchor(item.id);
+              }
+              setMenu({ x: e.clientX, y: e.clientY, item });
+            }}
+            onNew={() => openNew()}
+            onAddSample={url => openNew(url)}
+            isEmptyLibrary={items.length === 0}
+          />
+          {detailsItem && (
+            <DetailsPanel
+              item={detailsItem}
+              onClose={() => setDetailsId(null)}
+              onPrimaryAction={primaryAction}
+              onRestart={item => downloadManager.restart(item.id)}
+              onRemove={item => removeItems([item])}
+            />
+          )}
         </div>
-      </div>
 
-      {/* Floating Media Sniffer Launcher Button (Bottom Right) */}
-      {settings.showFloatingVideoBar && (
-        <div className="fixed bottom-8 right-6 z-40">
-          <button
-            onClick={() => setIsMediaSnifferOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 text-white font-bold text-xs shadow-2xl hover:scale-105 active:scale-95 transition-all border border-blue-300 drop-shadow-[0_10px_20px_rgba(0,100,255,0.4)] animate-pulse-soft"
-            title="Launch IDM Video Grabber Test Studio"
-          >
-            <MonitorPlay className="w-4 h-4 text-white" />
-            <span>Test Floating Video Grabber</span>
-          </button>
+        <StatusBar items={items} settings={settings} />
+      </main>
+
+      {menu && <ContextMenu x={menu.x} y={menu.y} entries={menuEntries(menu.item)} onClose={() => setMenu(null)} />}
+
+      <NewDownloadDialog
+        open={newOpen}
+        initialText={newText}
+        defaultConnections={settings.connections}
+        onClose={() => setNewOpen(false)}
+        onAdd={(probe, options) => {
+          const item = downloadManager.add(probe, options);
+          setSelected(new Set([item.id]));
+          setDetailsId(item.id);
+          setView('all');
+          setCategory(null);
+        }}
+        onAddMany={addMany}
+      />
+
+      <SettingsDialog
+        open={settingsOpen}
+        settings={settings}
+        onUpdate={updateSettings}
+        onClose={() => setSettingsOpen(false)}
+        onClearCompleted={() => {
+          void downloadManager.clearCompleted();
+          toast('Cleared completed downloads');
+        }}
+      />
+
+      {dragging && (
+        <div className="pointer-events-none fixed inset-0 z-[70] flex items-center justify-center bg-blue-600/10 p-6 backdrop-blur-[2px]">
+          <div className="flex h-full w-full items-center justify-center rounded-3xl border-2 border-dashed border-blue-500">
+            <div className="rounded-2xl bg-white px-6 py-4 text-center shadow-xl dark:bg-zinc-900">
+              <Download className="mx-auto size-6 text-blue-600" />
+              <div className="mt-2 text-sm font-semibold">Drop links to download</div>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* All Authentic IDM Modals */}
-      <AddUrlModal
-        isOpen={isAddUrlOpen}
-        settings={settings}
-        onClose={() => setIsAddUrlOpen(false)}
-        onSubmitUrl={handleAddUrlSubmit}
-      />
-
-      <DownloadInfoModal
-        isOpen={isDownloadInfoOpen}
-        settings={settings}
-        url={candidateUrl}
-        onClose={() => setIsDownloadInfoOpen(false)}
-        onStartDownload={handleConfirmDownloadInfo}
-      />
-
-      <ActiveDownloadModal
-        item={activeDownloadModalItem}
-        settings={settings}
-        onClose={() => setActiveDownloadModalItem(null)}
-        onPause={(item) => {
-          downloadEngine.pauseDownload(item, (updated) => {
-            setDownloads(prev => prev.map(d => (d.id === updated.id ? updated : d)));
-          });
-        }}
-        onResume={(item) => handleStartDownloadItem(item)}
-        onCancel={(item) => {
-          downloadEngine.stopDownload(item.id);
-          setActiveDownloadModalItem(null);
-          setDownloads(prev =>
-            prev.map(d => (d.id === item.id ? { ...d, status: 'paused', speed: 'Cancelled' } : d))
-          );
-        }}
-        onUpdateSettings={handleUpdateSettings}
-      />
-
-      <DownloadCompleteModal
-        item={completedModalItem}
-        settings={settings}
-        onClose={() => setCompletedModalItem(null)}
-      />
-
-      <OptionsModal
-        isOpen={isOptionsOpen}
-        settings={settings}
-        onClose={() => setIsOptionsOpen(false)}
-        onSave={(newSettings) => handleUpdateSettings(newSettings)}
-      />
-
-      <SchedulerModal
-        isOpen={isSchedulerOpen}
-        settings={settings}
-        onClose={() => setIsSchedulerOpen(false)}
-        onSave={(newSettings) => handleUpdateSettings(newSettings)}
-      />
-
-      <SiteGrabberModal
-        isOpen={isGrabberOpen}
-        settings={settings}
-        onClose={() => setIsGrabberOpen(false)}
-        onStartGrab={(url, fileType) => {
-          handleAddUrlSubmit(url, false);
-        }}
-      />
-
-      <AboutModal
-        isOpen={isAboutOpen}
-        settings={settings}
-        onClose={() => setIsAboutOpen(false)}
-      />
-
-      <MediaSnifferModal
-        isOpen={isMediaSnifferOpen}
-        settings={settings}
-        onClose={() => setIsMediaSnifferOpen(false)}
-        onCaptureVideo={(videoUrl, format) => {
-          handleConfirmDownloadInfo({
-            title: `Big_Buck_Bunny_${format.quality.replace(/\s+/g, '_')}.${format.container.toLowerCase()}`,
-            url: videoUrl,
-            category: 'video',
-            savePath: `${settings.categoriesDirs.video}\\Big_Buck_Bunny.${format.container.toLowerCase()}`,
-            totalBytes: 158008374,
-            format,
-            startImmediately: true,
-          });
-        }}
-      />
+      <Toaster />
     </div>
   );
 };

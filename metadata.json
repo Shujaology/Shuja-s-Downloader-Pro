@@ -1,5 +1,5 @@
 {
-  "name": "Copy of Shuja's Downloader Pro",
-  "description": "A robust application for analyzing and downloading video and audio streams from public URLs. It features format and quality detection, download management, and a sleek, modern interface.",
+  "name": "Shuja's Downloader Pro",
+  "description": "A fast, multi-connection download manager that runs in the browser: parallel ranged downloads, pause/resume across reloads, bandwidth limiting and scheduling.",
   "requestFramePermissions": []
 }
