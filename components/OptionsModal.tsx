@@ -30,20 +30,6 @@ export const OptionsModal: React.FC<OptionsModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleBrowseDir = (categoryKey: keyof typeof formData.categoriesDirs) => {
-    const current = formData.categoriesDirs[categoryKey];
-    const newDir = prompt(`Enter save folder path for ${categoryKey}:`, current);
-    if (newDir) {
-      setFormData({
-        ...formData,
-        categoriesDirs: {
-          ...formData.categoriesDirs,
-          [categoryKey]: newDir,
-        },
-      });
-    }
-  };
-
   const handleSave = () => {
     soundEffects.setSoundEnabled(formData.soundEnabled);
     onSave(formData);
@@ -187,59 +173,15 @@ export const OptionsModal: React.FC<OptionsModalProps> = ({
           )}
 
           {activeTab === 'saveto' && (
-            <div className="space-y-2.5">
-              <div className="font-semibold text-gray-700 dark:text-gray-300">
-                Save to directories by category:
-              </div>
-              {(Object.keys(formData.categoriesDirs) as Array<keyof typeof formData.categoriesDirs>).map(cat => (
-                <div key={cat} className="flex items-center gap-2">
-                  <span className="w-24 capitalize font-medium text-gray-500">{cat}:</span>
-                  <input
-                    type="text"
-                    value={formData.categoriesDirs[cat]}
-                    onChange={e => {
-                      setFormData({
-                        ...formData,
-                        categoriesDirs: {
-                          ...formData.categoriesDirs,
-                          [cat]: e.target.value,
-                        },
-                      });
-                    }}
-                    className={`flex-1 px-2 py-1 rounded border outline-none font-mono text-[11px] ${
-                      isDark ? 'bg-[#1e1e1e] border-[#444444]' : 'bg-white border-[#abadb3]'
-                    }`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleBrowseDir(cat)}
-                    className="px-2.5 py-1 rounded border hover:bg-black/10 font-bold"
-                  >
-                    ...
-                  </button>
-                </div>
-              ))}
+            <div className="rounded border border-gray-300 dark:border-gray-700 bg-black/5 dark:bg-white/5 p-3 text-gray-600 dark:text-gray-300">
+              Downloads are saved to your Windows Downloads folder, under ShujaDownloader. Set SDM_DOWNLOAD_DIR before starting the app to choose a different folder.
             </div>
           )}
 
           {activeTab === 'connection' && (
             <div className="space-y-3">
               <div>
-                <label className="font-semibold block mb-1">Connection Type/Speed:</label>
-                <select
-                  defaultValue="high"
-                  className={`w-full px-2 py-1 rounded border outline-none ${
-                    isDark ? 'bg-[#1e1e1e] border-[#444444]' : 'bg-white border-[#abadb3]'
-                  }`}
-                >
-                  <option value="high">High speed: Direct connection (Ethernet/Cable) / Wi-Fi</option>
-                  <option value="medium">Medium speed: 4G/LTE / DSL</option>
-                  <option value="low">Low speed: Dial-Up / 3G</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="font-semibold block mb-1">Max. connection number:</label>
+                <label className="font-semibold block mb-1">Maximum connections per download:</label>
                 <select
                   value={formData.maxConnections}
                   onChange={e => setFormData({ ...formData, maxConnections: Number(e.target.value) })}
@@ -247,12 +189,15 @@ export const OptionsModal: React.FC<OptionsModalProps> = ({
                     isDark ? 'bg-[#1e1e1e] border-[#444444]' : 'bg-white border-[#abadb3]'
                   }`}
                 >
-                  <option value={1}>1 (Single connection)</option>
+                  <option value={1}>1 connection</option>
                   <option value={4}>4 connections</option>
-                  <option value={8}>8 connections (Default)</option>
-                  <option value={16}>16 connections (Maximum acceleration)</option>
-                  <option value={32}>32 connections (Extreme multi-threading)</option>
+                  <option value={8}>8 connections</option>
+                  <option value={16}>16 connections</option>
                 </select>
+              </div>
+
+              <div className="rounded border border-gray-300 dark:border-gray-700 bg-black/5 dark:bg-white/5 p-3 text-gray-600 dark:text-gray-300">
+                Parallel connections are used only when the server supports byte ranges. Some servers may limit or reject multiple connections.
               </div>
 
               <div className="p-3 rounded border border-gray-300 dark:border-gray-700 bg-black/5 dark:bg-white/5 space-y-2">

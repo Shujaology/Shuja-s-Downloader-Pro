@@ -25,14 +25,13 @@ export const DownloadCompleteModal: React.FC<DownloadCompleteModalProps> = ({
       a.download = item.title;
       a.click();
     } else {
-      alert(`Opening ${item.title}\nSaved to: ${item.savePath}`);
+      alert('The downloaded data is no longer available in this browser session. Please download the file again.');
     }
     onClose();
   };
 
   const handleOpenFolder = () => {
-    alert(`File is saved in:\n${item.savePath}`);
-    onClose();
+    alert(`Downloaded file location:\n${item.savePath}`);
   };
 
   return (
@@ -78,7 +77,7 @@ export const DownloadCompleteModal: React.FC<DownloadCompleteModalProps> = ({
                 {item.title}
               </p>
               <div className="text-[11px] text-gray-500 font-mono mt-1">
-                Size: {formatBytes(item.totalBytes)} | {item.connections} threads assembled
+                Size: {formatBytes(item.totalBytes)} | Browser stream complete
               </div>
             </div>
           </div>
@@ -101,7 +100,7 @@ export const DownloadCompleteModal: React.FC<DownloadCompleteModalProps> = ({
                 className="px-4 py-1.5 font-bold rounded bg-gradient-to-b from-[#107c41] to-[#0b5c30] text-white hover:brightness-110 active:brightness-95 shadow-sm border border-[#084223] flex items-center gap-1.5"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
-                <span>Open</span>
+                <span>Save file</span>
               </button>
 
               <button
@@ -114,7 +113,7 @@ export const DownloadCompleteModal: React.FC<DownloadCompleteModalProps> = ({
                 }`}
               >
                 <FolderOpen className="w-3.5 h-3.5 text-amber-500" />
-                <span>Open folder</span>
+                <span>Show location</span>
               </button>
 
               <button

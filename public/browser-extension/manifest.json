@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Shuja Downloader Pro",
+  "version": "1.0.0",
+  "description": "Send links and optionally capture browser downloads with your local Shuja Downloader Pro service.",
+  "permissions": [
+    "contextMenus",
+    "storage",
+    "activeTab",
+    "scripting",
+    "downloads"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Send current tab to Shuja Downloader Pro"
+  },
+  "options_page": "options.html",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtLLZKXNGK0LDPkcb08Y0l8AMbNNWT1tppn/tTJx0OKpFIZgm7yURsFlkglCHONzf/sokE6FhVjI9LGRtXdthSMNdwyagZc/hTh9BxuxVW0OpeAWqDi+r5mxhcphLWJkqln72wutwHhtd9ACteiNKakHt0aFBOxHid6TIEdSSqZuDEXjIwQ+/OE0zv7M+i8JS5gLFLb32LTbOWePlFKTM2xAO8LFabhIerg9cCJNYIdQgRMC4mzrrxHZHXPwXA/QRok/NU4D54SSg3wQBpRjjKT1+N+Jht4sNqbRhh20OewDYyJpO8S2bSFLqdeG7XU93/uPkaNuDQwGHS+Gw/KLsowIDAQAB"
+}

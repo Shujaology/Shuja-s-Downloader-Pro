@@ -2,16 +2,16 @@ import React, { useState, useEffect } from 'react';
 import {
   X,
   Download,
-  FolderOpen,
   Film,
   Sparkles,
-  CheckCircle,
   FileCheck,
   Clock
 } from 'lucide-react';
-import type { DownloadCategory, FormatOption, IDMSettings } from '../types';
-import { MOCK_FORMATS, detectCategory, formatBytes } from '../constants';
+import type { DownloadCategory, IDMSettings } from '../types';
+import type { MediaFormat } from '../types';
+import { detectCategory } from '../constants';
 import { generateVideoSummary } from '../services/geminiService';
+import { isSupportedMediaUrl } from '../services/mediaUrls';
 
 interface DownloadInfoModalProps {
   isOpen: boolean;
@@ -21,12 +21,13 @@ interface DownloadInfoModalProps {
   onStartDownload: (info: {
     title: string;
     url: string;
-    category: DownloadCategory;
+    category: Exclude<DownloadCategory, 'all'>;
     savePath: string;
     totalBytes: number;
-    format?: FormatOption;
     summary?: string;
     thumbnailUrl?: string;
+    mediaExtractor?: boolean;
+    mediaFormatId?: string;
     startImmediately: boolean;
   }) => void;
 }
@@ -40,42 +41,60 @@ export const DownloadInfoModal: React.FC<DownloadInfoModalProps> = ({
 }) => {
   const isDark = settings.theme === 'windows-dark';
 
-  const [category, setCategory] = useState<DownloadCategory>('programs');
+  const [category, setCategory] = useState<Exclude<DownloadCategory, 'all'>>('programs');
   const [filename, setFilename] = useState('');
-  const [saveDir, setSaveDir] = useState('');
-  const [fileSize, setFileSize] = useState<number>(154200000);
-  const [selectedFormatId, setSelectedFormatId] = useState<string>('v_mp4_1080p');
   const [isMediaLink, setIsMediaLink] = useState(false);
+  const [isPlatformPage, setIsPlatformPage] = useState(false);
   const [thumbnailUrl, setThumbnailUrl] = useState<string | undefined>(undefined);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [mediaFormats, setMediaFormats] = useState<MediaFormat[]>([]);
+  const [selectedMediaFormat, setSelectedMediaFormat] = useState('');
+  const [mediaError, setMediaError] = useState<string | null>(null);
+  const [isInspectingMedia, setIsInspectingMedia] = useState(false);
 
   useEffect(() => {
     if (!url) return;
+    let cancelled = false;
 
     const detected = detectCategory(url);
     setCategory(detected);
-
-    // Default directory based on category
-    const defaultDir = settings.categoriesDirs[detected as keyof typeof settings.categoriesDirs] || settings.saveDirectory;
-    setSaveDir(defaultDir);
+    setMediaFormats([]);
+    setSelectedMediaFormat('');
+    setMediaError(null);
+    setAiSummary(null);
+    setThumbnailUrl(undefined);
+    setIsMediaLink(false);
+    setIsPlatformPage(false);
 
     // Extract filename from URL
     try {
       const parsed = new URL(url);
-      const isYoutube = parsed.hostname.includes('youtube.com') || parsed.hostname === 'youtu.be';
+      const isMediaPlatform = isSupportedMediaUrl(url);
 
-      if (isYoutube) {
+      if (isMediaPlatform) {
         setIsMediaLink(true);
-        let videoId = 'dQw4w9WgXcQ';
-        if (parsed.searchParams.get('v')) {
-          videoId = parsed.searchParams.get('v')!;
-        } else if (parsed.hostname === 'youtu.be') {
-          videoId = parsed.pathname.slice(1);
-        }
-        setFilename(`YouTube_Video_${videoId}.mp4`);
-        setThumbnailUrl(`https://i3.ytimg.com/vi/${videoId}/hqdefault.jpg`);
-        setFileSize(154200000);
+        setIsPlatformPage(true);
+        setFilename('Extracting media information...');
+        setIsInspectingMedia(true);
+        fetch('/api/media/inspect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        }).then(async response => {
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || `Media inspection failed with HTTP ${response.status}.`);
+          if (cancelled) return;
+          setFilename(result.title || 'media-download');
+          setThumbnailUrl(result.thumbnailUrl);
+          setMediaFormats(result.formats || []);
+          setSelectedMediaFormat(result.formats?.[0]?.formatId || '');
+          setMediaError(result.formats?.length ? null : 'No downloadable formats were found for this media URL.');
+        }).catch(error => {
+          if (!cancelled) setMediaError(error instanceof Error ? error.message : 'Could not inspect this media URL.');
+        }).finally(() => {
+          if (!cancelled) setIsInspectingMedia(false);
+        });
       } else {
         const pathSegments = parsed.pathname.split('/').filter(Boolean);
         const lastSegment = pathSegments[pathSegments.length - 1] || 'downloaded_file.bin';
@@ -83,19 +102,14 @@ export const DownloadInfoModal: React.FC<DownloadInfoModalProps> = ({
         setFilename(cleanName);
         setIsMediaLink(cleanName.match(/\.(mp4|mkv|webm|avi|mp3|m4a|flac)$/i) !== null);
 
-        // Estimate size if sample
-        if (cleanName.endsWith('.iso')) setFileSize(4800000000);
-        else if (cleanName.endsWith('.zip')) setFileSize(425000000);
-        else if (cleanName.endsWith('.pdf')) setFileSize(24500000);
-        else if (cleanName.endsWith('.mp3')) setFileSize(6400000);
-        else if (cleanName.endsWith('.exe')) setFileSize(98500000);
-        else setFileSize(75000000);
       }
     } catch {
       setFilename('download_file.bin');
-      setFileSize(50000000);
     }
-  }, [url, settings]);
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
 
   if (!isOpen) return null;
 
@@ -105,23 +119,23 @@ export const DownloadInfoModal: React.FC<DownloadInfoModalProps> = ({
       const summary = await generateVideoSummary(filename);
       setAiSummary(summary);
     } catch {
-      setAiSummary('High quality stream capture ready for ultra-fast multi-threaded download.');
+      setAiSummary('Summary generation failed. Check your Gemini API key and network connection.');
     } finally {
       setIsGeneratingAi(false);
     }
   };
 
   const handleConfirm = (startImmediately: boolean) => {
-    const selectedFormat = MOCK_FORMATS.find(f => f.id === selectedFormatId);
     onStartDownload({
       title: filename,
       url,
       category,
-      savePath: `${saveDir}\\${filename}`,
-      totalBytes: fileSize,
-      format: selectedFormat,
+      savePath: 'Browser Downloads folder',
+      totalBytes: 0,
       summary: aiSummary || undefined,
       thumbnailUrl,
+      mediaExtractor: isPlatformPage,
+      mediaFormatId: selectedMediaFormat || undefined,
       startImmediately,
     });
     onClose();
@@ -172,11 +186,8 @@ export const DownloadInfoModal: React.FC<DownloadInfoModalProps> = ({
             <select
               value={category}
               onChange={e => {
-                const cat = e.target.value as DownloadCategory;
+                const cat = e.target.value as Exclude<DownloadCategory, 'all'>;
                 setCategory(cat);
-                if (settings.categoriesDirs[cat as keyof typeof settings.categoriesDirs]) {
-                  setSaveDir(settings.categoriesDirs[cat as keyof typeof settings.categoriesDirs]);
-                }
               }}
               className={`flex-1 px-2 py-1 rounded border outline-none text-xs ${
                 isDark ? 'bg-[#1e1e1e] border-[#444444] text-white' : 'bg-white border-[#abadb3] text-black'
@@ -193,38 +204,22 @@ export const DownloadInfoModal: React.FC<DownloadInfoModalProps> = ({
           {/* Save As (File Name & Directory) */}
           <div className="flex items-center gap-2">
             <label className="w-20 font-semibold text-gray-600 dark:text-gray-400">Save As:</label>
-            <div className="flex-1 flex gap-1.5">
+            <div className="flex-1">
               <input
                 type="text"
                 value={filename}
                 onChange={e => setFilename(e.target.value)}
-                className={`flex-1 px-2.5 py-1 rounded border outline-none font-semibold text-xs ${
+                className={`w-full px-2.5 py-1 rounded border outline-none font-semibold text-xs ${
                   isDark ? 'bg-[#1e1e1e] border-[#444444] text-white' : 'bg-white border-[#abadb3] text-black'
                 }`}
               />
-              <button
-                type="button"
-                onClick={() => {
-                  const newDir = prompt('Enter folder path to save to:', saveDir);
-                  if (newDir) setSaveDir(newDir);
-                }}
-                className={`px-3 py-1 rounded border text-xs font-bold transition flex items-center gap-1 ${
-                  isDark
-                    ? 'bg-[#333333] border-[#444444] hover:bg-[#3d3d3d]'
-                    : 'bg-[#e1e1e1] border-[#adadad] hover:bg-[#e9e9e9]'
-                }`}
-                title="Browse destination folder"
-              >
-                <FolderOpen className="w-3.5 h-3.5" />
-                <span>...</span>
-              </button>
             </div>
           </div>
 
-          {/* Destination Path Preview */}
+          {/* Browser-managed destination */}
           <div className="flex items-center gap-2 text-[10px] text-gray-500 font-mono">
-            <span className="w-20">Path:</span>
-            <span className="truncate">{saveDir}\{filename}</span>
+            <span className="w-20">Location:</span>
+            <span className="truncate">Downloads\ShujaDownloader</span>
           </div>
 
           {/* Media / Video Stream Selector */}
@@ -244,22 +239,28 @@ export const DownloadInfoModal: React.FC<DownloadInfoModalProps> = ({
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
-                <label className="w-20 font-semibold text-gray-600 dark:text-gray-400">Quality:</label>
+              <div className="text-[11px] text-gray-600 dark:text-gray-400">
+                {isInspectingMedia ? 'Loading formats using yt-dlp...' : isPlatformPage ? 'Select a format to download using yt-dlp.' : 'Direct media file detected; it will be downloaded as a regular file.'}
+              </div>
+              {mediaError && <div role="alert" className="text-[11px] rounded border border-red-300 bg-red-50 p-2 text-red-700">{mediaError}</div>}
+              {mediaFormats.length > 0 && (
                 <select
-                  value={selectedFormatId}
-                  onChange={e => setSelectedFormatId(e.target.value)}
-                  className={`flex-1 px-2 py-1 rounded border outline-none font-semibold text-xs ${
+                  aria-label="Media download format"
+                  value={selectedMediaFormat}
+                  onChange={event => setSelectedMediaFormat(event.target.value)}
+                  className={`w-full px-2 py-1 rounded border outline-none text-xs ${
                     isDark ? 'bg-[#252526] border-[#444444] text-white' : 'bg-white border-[#abadb3] text-black'
                   }`}
                 >
-                  {MOCK_FORMATS.map(fmt => (
-                    <option key={fmt.id} value={fmt.id}>
-                      {fmt.quality} ({fmt.container}) — {fmt.size}
+                  {mediaFormats.map(format => (
+                    <option key={format.formatId} value={format.formatId}>
+                      {format.resolution} · {format.extension.toUpperCase()}
+                      {format.size ? ` · ${(format.size / 1048576).toFixed(1)} MB` : ''}
+                      {format.note ? ` · ${format.note}` : ''}
                     </option>
                   ))}
                 </select>
-              </div>
+              )}
 
               {/* Gemini AI Summary Integration */}
               <div className="pt-1 border-t border-gray-200 dark:border-gray-800">
@@ -290,12 +291,12 @@ export const DownloadInfoModal: React.FC<DownloadInfoModalProps> = ({
           <div className="grid grid-cols-2 gap-2 text-[11px] p-2.5 rounded bg-black/5 dark:bg-white/5 border border-gray-300 dark:border-gray-700">
             <div>
               <span className="text-gray-500">File size: </span>
-              <strong>{formatBytes(fileSize)}</strong>
+              <strong>Detected on connect</strong>
             </div>
             <div>
               <span className="text-gray-500">Resume capability: </span>
-              <strong className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 inline-flex">
-                <CheckCircle className="w-3 h-3 inline" /> Yes
+              <strong className="text-gray-600 dark:text-gray-400">
+                If supported by server
               </strong>
             </div>
           </div>
@@ -304,14 +305,15 @@ export const DownloadInfoModal: React.FC<DownloadInfoModalProps> = ({
           <div className="flex items-center justify-between pt-3 border-t border-gray-300 dark:border-gray-700">
             <div className="text-[10px] text-gray-500 flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              <span>Multi-threaded (8 segments)</span>
+              <span>{isMediaLink ? 'Video/audio extraction via yt-dlp' : 'Local disk stream with parallel ranges when supported'}</span>
             </div>
 
             <div className="flex items-center gap-2">
               <button
                 type="button"
+                disabled={isPlatformPage && (!selectedMediaFormat || isInspectingMedia || !!mediaError)}
                 onClick={() => handleConfirm(true)}
-                className="px-4 py-1.5 font-bold rounded bg-gradient-to-b from-[#107c41] to-[#0b5c30] text-white hover:brightness-110 active:brightness-95 shadow-sm border border-[#084223] flex items-center gap-1.5"
+                className="px-4 py-1.5 font-bold rounded bg-gradient-to-b from-[#107c41] to-[#0b5c30] text-white hover:brightness-110 active:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm border border-[#084223] flex items-center gap-1.5"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Start Download</span>

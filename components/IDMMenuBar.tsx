@@ -3,7 +3,6 @@ import {
   Download,
   FolderOpen,
   Settings,
-  HelpCircle,
   Clock,
   Layers,
   Trash2,
@@ -14,7 +13,6 @@ import {
   Moon,
   Info,
   CheckCircle2,
-  XCircle
 } from 'lucide-react';
 import type { IDMSettings } from '../types';
 
@@ -78,262 +76,98 @@ export const IDMMenuBar: React.FC<IDMMenuBarProps> = ({
 
   const isDark = settings.theme === 'windows-dark';
 
-  return (
-    <div
-      ref={menuRef}
-      className={`flex items-center text-xs border-b select-none transition-colors ${
-        isDark
-          ? 'bg-[#252526] text-[#cccccc] border-[#3c3c3c]'
-          : 'bg-[#f0f0f0] text-[#1e1e1e] border-[#dfdfdf]'
-      }`}
+  const MenuButton: React.FC<{ id: string; label: string }> = ({ id, label }) => (
+    <button
+      onClick={() => handleMenuClick(id)}
+      className={activeMenu === id ? 'bg-white/[0.06] text-slate-100' : ''}
     >
-      {/* Tasks Menu */}
-      <div className="relative">
-        <button
-          onClick={() => handleMenuClick('tasks')}
-          className={`px-3 py-1 hover:${isDark ? 'bg-[#333333]' : 'bg-[#e5f1fb]'} ${
-            activeMenu === 'tasks' ? (isDark ? 'bg-[#333333]' : 'bg-[#cbe3f7]') : ''
-          }`}
-        >
-          <span className="underline">T</span>asks
-        </button>
-        {activeMenu === 'tasks' && (
-          <div
-            className={`absolute left-0 top-full mt-0 w-56 shadow-lg border z-50 py-1 rounded-sm ${
-              isDark ? 'bg-[#252526] border-[#454545] text-[#e0e0e0]' : 'bg-[#ffffff] border-[#999999] text-[#222222]'
-            }`}
-          >
-            <button
-              onClick={() => handleAction(onOpenAddUrl)}
-              className={`w-full flex items-center justify-between px-3 py-1.5 hover:${
-                isDark ? 'bg-[#094771] text-white' : 'bg-[#91c9f7]'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <Download className="w-3.5 h-3.5 text-blue-500" />
-                Add new download
-              </span>
-              <span className="text-[10px] opacity-60">Ctrl+N</span>
-            </button>
-            <button
-              onClick={() => handleAction(onOpenGrabber)}
-              className={`w-full flex items-center justify-between px-3 py-1.5 hover:${
-                isDark ? 'bg-[#094771] text-white' : 'bg-[#91c9f7]'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <Globe className="w-3.5 h-3.5 text-indigo-500" />
-                Run Site Grabber
-              </span>
-            </button>
-            <div className={`my-1 border-t ${isDark ? 'border-[#3c3c3c]' : 'border-[#e0e0e0]'}`} />
-            <button
-              onClick={() => handleAction(onDeleteCompleted)}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 hover:${
-                isDark ? 'bg-[#094771] text-white' : 'bg-[#91c9f7]'
-              }`}
-            >
-              <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-              Remove completed downloads
-            </button>
-            <button
-              onClick={() => handleAction(onDeleteSelected)}
-              disabled={selectedCount === 0}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 disabled:opacity-40 hover:${
-                isDark ? 'bg-[#094771] text-white' : 'bg-[#91c9f7]'
-              }`}
-            >
-              <Trash2 className="w-3.5 h-3.5 text-red-500" />
-              Delete selected ({selectedCount})
-            </button>
-          </div>
-        )}
-      </div>
+      {label}
+    </button>
+  );
 
-      {/* File Menu */}
+  const Item: React.FC<{
+    onClick: () => void;
+    icon: React.ReactNode;
+    label: string;
+    shortcut?: string;
+    disabled?: boolean;
+  }> = ({ onClick, icon, label, shortcut, disabled }) => (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full flex items-center justify-between px-3 py-2 disabled:opacity-40"
+    >
+      <span className="flex items-center gap-2.5">
+        {icon}
+        {label}
+      </span>
+      {shortcut && <span className="text-[10px] text-slate-500">{shortcut}</span>}
+    </button>
+  );
+
+  return (
+    <div ref={menuRef} className="sdm-menu-bar flex items-center text-xs select-none">
       <div className="relative">
-        <button
-          onClick={() => handleMenuClick('file')}
-          className={`px-3 py-1 hover:${isDark ? 'bg-[#333333]' : 'bg-[#e5f1fb]'} ${
-            activeMenu === 'file' ? (isDark ? 'bg-[#333333]' : 'bg-[#cbe3f7]') : ''
-          }`}
-        >
-          <span className="underline">F</span>ile
-        </button>
+        <MenuButton id="file" label="File" />
         {activeMenu === 'file' && (
-          <div
-            className={`absolute left-0 top-full mt-0 w-52 shadow-lg border z-50 py-1 rounded-sm ${
-              isDark ? 'bg-[#252526] border-[#454545] text-[#e0e0e0]' : 'bg-[#ffffff] border-[#999999] text-[#222222]'
-            }`}
-          >
-            <button
-              onClick={() => handleAction(onOpenAddUrl)}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 hover:${
-                isDark ? 'bg-[#094771] text-white' : 'bg-[#91c9f7]'
-              }`}
-            >
-              <FolderOpen className="w-3.5 h-3.5 text-amber-500" />
-              Open URL to download
-            </button>
-            <div className={`my-1 border-t ${isDark ? 'border-[#3c3c3c]' : 'border-[#e0e0e0]'}`} />
-            <button
-              onClick={() => handleAction(onOpenOptions)}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 hover:${
-                isDark ? 'bg-[#094771] text-white' : 'bg-[#91c9f7]'
-              }`}
-            >
-              <Settings className="w-3.5 h-3.5 text-gray-500" />
-              Default Download Folders
-            </button>
+          <div className="sdm-dropdown absolute left-0 top-full mt-1 w-60 z-50 py-1">
+            <Item onClick={() => handleAction(onOpenAddUrl)} icon={<Download className="w-3.5 h-3.5 text-sky-400" />} label="New download" shortcut="Ctrl+N" />
+            <Item onClick={() => handleAction(onOpenGrabber)} icon={<Globe className="w-3.5 h-3.5 text-slate-400" />} label="Site grabber" />
+            <Item onClick={() => handleAction(onOpenAddUrl)} icon={<FolderOpen className="w-3.5 h-3.5 text-slate-400" />} label="Open URL" />
           </div>
         )}
       </div>
 
-      {/* Downloads Menu */}
       <div className="relative">
-        <button
-          onClick={() => handleMenuClick('downloads')}
-          className={`px-3 py-1 hover:${isDark ? 'bg-[#333333]' : 'bg-[#e5f1fb]'} ${
-            activeMenu === 'downloads' ? (isDark ? 'bg-[#333333]' : 'bg-[#cbe3f7]') : ''
-          }`}
-        >
-          <span className="underline">D</span>ownloads
-        </button>
+        <MenuButton id="downloads" label="Downloads" />
         {activeMenu === 'downloads' && (
-          <div
-            className={`absolute left-0 top-full mt-0 w-56 shadow-lg border z-50 py-1 rounded-sm ${
-              isDark ? 'bg-[#252526] border-[#454545] text-[#e0e0e0]' : 'bg-[#ffffff] border-[#999999] text-[#222222]'
-            }`}
-          >
-            <button
-              onClick={() => handleAction(onStartQueue)}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 hover:${
-                isDark ? 'bg-[#094771] text-white' : 'bg-[#91c9f7]'
-              }`}
-            >
-              <Play className="w-3.5 h-3.5 text-green-500" />
-              Start Queue
-            </button>
-            <button
-              onClick={() => handleAction(onStopQueue)}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 hover:${
-                isDark ? 'bg-[#094771] text-white' : 'bg-[#91c9f7]'
-              }`}
-            >
-              <Square className="w-3.5 h-3.5 text-red-500" />
-              Stop Queue
-            </button>
-            <div className={`my-1 border-t ${isDark ? 'border-[#3c3c3c]' : 'border-[#e0e0e0]'}`} />
-            <button
-              onClick={() => handleAction(onOpenScheduler)}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 hover:${
-                isDark ? 'bg-[#094771] text-white' : 'bg-[#91c9f7]'
-              }`}
-            >
-              <Clock className="w-3.5 h-3.5 text-amber-500" />
-              Scheduler / Queues
-            </button>
-            <button
-              onClick={() => handleAction(onOpenOptions)}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 hover:${
-                isDark ? 'bg-[#094771] text-white' : 'bg-[#91c9f7]'
-              }`}
-            >
-              <Settings className="w-3.5 h-3.5 text-blue-500" />
-              Options...
-            </button>
-            <button
+          <div className="sdm-dropdown absolute left-0 top-full mt-1 w-64 z-50 py-1">
+            <Item onClick={() => handleAction(onStartQueue)} icon={<Play className="w-3.5 h-3.5 text-slate-400" />} label="Start queue" />
+            <Item onClick={() => handleAction(onStopQueue)} icon={<Square className="w-3.5 h-3.5 text-slate-400" />} label="Stop queue" />
+            <div className="my-1 border-t border-white/10" />
+            <Item onClick={() => handleAction(onDeleteCompleted)} icon={<CheckCircle2 className="w-3.5 h-3.5 text-slate-400" />} label="Clear finished" />
+            <Item onClick={() => handleAction(onDeleteSelected)} icon={<Trash2 className="w-3.5 h-3.5 text-slate-400" />} label={`Remove selected (${selectedCount})`} disabled={selectedCount === 0} />
+            <div className="my-1 border-t border-white/10" />
+            <Item onClick={() => handleAction(onOpenScheduler)} icon={<Clock className="w-3.5 h-3.5 text-slate-400" />} label="Scheduler" />
+            <Item
               onClick={() => {
                 onUpdateSettings({ speedLimiterEnabled: !settings.speedLimiterEnabled });
                 setActiveMenu(null);
               }}
-              className={`w-full flex items-center justify-between px-3 py-1.5 hover:${
-                isDark ? 'bg-[#094771] text-white' : 'bg-[#91c9f7]'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <Layers className="w-3.5 h-3.5 text-purple-500" />
-                Speed Limiter
-              </span>
-              <span className={`text-[10px] font-bold ${settings.speedLimiterEnabled ? 'text-green-500' : 'text-gray-400'}`}>
-                {settings.speedLimiterEnabled ? 'ON' : 'OFF'}
-              </span>
-            </button>
+              icon={<Layers className="w-3.5 h-3.5 text-slate-400" />}
+              label={`Speed limiter · ${settings.speedLimiterEnabled ? 'On' : 'Off'}`}
+            />
           </div>
         )}
       </div>
 
-      {/* View Menu */}
       <div className="relative">
-        <button
-          onClick={() => handleMenuClick('view')}
-          className={`px-3 py-1 hover:${isDark ? 'bg-[#333333]' : 'bg-[#e5f1fb]'} ${
-            activeMenu === 'view' ? (isDark ? 'bg-[#333333]' : 'bg-[#cbe3f7]') : ''
-          }`}
-        >
-          <span className="underline">V</span>iew
-        </button>
+        <MenuButton id="view" label="View" />
         {activeMenu === 'view' && (
-          <div
-            className={`absolute left-0 top-full mt-0 w-56 shadow-lg border z-50 py-1 rounded-sm ${
-              isDark ? 'bg-[#252526] border-[#454545] text-[#e0e0e0]' : 'bg-[#ffffff] border-[#999999] text-[#222222]'
-            }`}
-          >
-            <button
+          <div className="sdm-dropdown absolute left-0 top-full mt-1 w-64 z-50 py-1">
+            <Item
               onClick={toggleTheme}
-              className={`w-full flex items-center justify-between px-3 py-1.5 hover:${
-                isDark ? 'bg-[#094771] text-white' : 'bg-[#91c9f7]'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                {isDark ? <Sun className="w-3.5 h-3.5 text-yellow-400" /> : <Moon className="w-3.5 h-3.5 text-slate-600" />}
-                Theme
-              </span>
-              <span className="text-[11px] font-medium opacity-75">
-                {isDark ? 'Windows Dark' : 'Classic Windows'}
-              </span>
-            </button>
-            <button
+              icon={isDark ? <Sun className="w-3.5 h-3.5 text-slate-400" /> : <Moon className="w-3.5 h-3.5 text-slate-400" />}
+              label={isDark ? 'Light appearance' : 'Dark appearance'}
+            />
+            <Item
               onClick={() => {
                 onUpdateSettings({ showFloatingVideoBar: !settings.showFloatingVideoBar });
                 setActiveMenu(null);
               }}
-              className={`w-full flex items-center justify-between px-3 py-1.5 hover:${
-                isDark ? 'bg-[#094771] text-white' : 'bg-[#91c9f7]'
-              }`}
-            >
-              <span>Floating Video Grabber Bar</span>
-              <span className="text-[10px] font-bold">{settings.showFloatingVideoBar ? '✓' : ''}</span>
-            </button>
+              icon={<Globe className="w-3.5 h-3.5 text-slate-400" />}
+              label={`Video grabber button · ${settings.showFloatingVideoBar ? 'On' : 'Off'}`}
+            />
           </div>
         )}
       </div>
 
-      {/* Help Menu */}
       <div className="relative">
-        <button
-          onClick={() => handleMenuClick('help')}
-          className={`px-3 py-1 hover:${isDark ? 'bg-[#333333]' : 'bg-[#e5f1fb]'} ${
-            activeMenu === 'help' ? (isDark ? 'bg-[#333333]' : 'bg-[#cbe3f7]') : ''
-          }`}
-        >
-          <span className="underline">H</span>elp
-        </button>
+        <MenuButton id="help" label="Help" />
         {activeMenu === 'help' && (
-          <div
-            className={`absolute left-0 top-full mt-0 w-56 shadow-lg border z-50 py-1 rounded-sm ${
-              isDark ? 'bg-[#252526] border-[#454545] text-[#e0e0e0]' : 'bg-[#ffffff] border-[#999999] text-[#222222]'
-            }`}
-          >
-            <button
-              onClick={() => handleAction(onOpenAbout)}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 hover:${
-                isDark ? 'bg-[#094771] text-white' : 'bg-[#91c9f7]'
-              }`}
-            >
-              <Info className="w-3.5 h-3.5 text-blue-500" />
-              About SDM Pro...
-            </button>
+          <div className="sdm-dropdown absolute left-0 top-full mt-1 w-56 z-50 py-1">
+            <Item onClick={() => handleAction(onOpenOptions)} icon={<Settings className="w-3.5 h-3.5 text-slate-400" />} label="Settings" />
+            <Item onClick={() => handleAction(onOpenAbout)} icon={<Info className="w-3.5 h-3.5 text-slate-400" />} label="About SDM Pro" />
           </div>
         )}
       </div>

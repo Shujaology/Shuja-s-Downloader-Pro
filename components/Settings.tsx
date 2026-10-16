@@ -1,5 +1,5 @@
 import React from 'react';
-import { SettingsIcon } from '../constants';
+import { Settings as SettingsIcon } from 'lucide-react';
 
 interface SettingsProps {
   onInstall: () => void;

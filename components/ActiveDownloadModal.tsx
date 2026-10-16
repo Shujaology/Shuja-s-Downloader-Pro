@@ -114,10 +114,16 @@ export const ActiveDownloadModal: React.FC<ActiveDownloadModalProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-gray-500">Resume capability:</span>
               <span className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                <CheckCircle className="w-3 h-3" /> Yes
+                <CheckCircle className="w-3 h-3" /> {item.resumeSupported ? 'Yes' : 'Unknown'}
               </span>
             </div>
           </div>
+
+          {item.errorMessage && (
+            <div role="alert" className="rounded border border-red-300 bg-red-50 px-3 py-2 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+              {item.errorMessage}
+            </div>
+          )}
 
           {/* Big Overall Progress Bar */}
           <div>
@@ -137,23 +143,25 @@ export const ActiveDownloadModal: React.FC<ActiveDownloadModalProps> = ({
                 style={{ width: `${item.progress}%` }}
               />
               <span className="relative z-10 font-mono font-bold text-xs text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                {item.progress.toFixed(1)}% Complete ({formatBytes(item.downloadedBytes)} / {formatBytes(item.totalBytes)})
+                {item.totalBytes > 0
+                  ? `${item.progress.toFixed(1)}% Complete (${formatBytes(item.downloadedBytes)} / ${formatBytes(item.totalBytes)})`
+                  : `${formatBytes(item.downloadedBytes)} downloaded`}
               </span>
             </div>
           </div>
 
-          {/* IDM Signature Feature: Multi-threaded Connection Segments Visualizer */}
+          {/* Active local download service transfer */}
           <div className={`p-3 rounded border ${isDark ? 'bg-[#1e1e1e] border-[#383838]' : 'bg-[#fafafa] border-[#d8d8d8]'}`}>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-1.5 font-semibold text-gray-700 dark:text-gray-300">
                 <Activity className="w-3.5 h-3.5 text-blue-500" />
-                <span>Multi-threaded Connection Segments ({item.connections || 8} parallel threads):</span>
+                <span>Transfer connections ({item.connections || 1}):</span>
               </div>
-              <span className="text-[10px] text-gray-500 font-mono">Dynamic Byte Splitting</span>
+              <span className="text-[10px] text-gray-500 font-mono">Unthrottled unless speed limit is enabled</span>
             </div>
 
             {/* Segment block diagram (IDM Style colored chunks) */}
-            <div className="grid grid-cols-8 gap-1 h-8 bg-gray-300 dark:bg-gray-800 p-1 rounded border border-gray-400 dark:border-gray-700 mb-2.5">
+            <div className="grid grid-cols-1 gap-1 h-8 bg-gray-300 dark:bg-gray-800 p-1 rounded border border-gray-400 dark:border-gray-700 mb-2.5">
               {item.segments.map((seg) => (
                 <div
                   key={seg.id}
@@ -182,7 +190,7 @@ export const ActiveDownloadModal: React.FC<ActiveDownloadModalProps> = ({
               <table className="w-full text-left text-[11px] font-mono">
                 <thead className={`border-b sticky top-0 ${isDark ? 'bg-[#2a2a2d] text-gray-400' : 'bg-[#eaeaea] text-gray-600'}`}>
                   <tr>
-                    <th className="py-1 px-2">Part</th>
+                    <th className="py-1 px-2">Stream</th>
                     <th className="py-1 px-2">State</th>
                     <th className="py-1 px-2 text-right">Downloaded</th>
                     <th className="py-1 px-2 text-right">Speed</th>

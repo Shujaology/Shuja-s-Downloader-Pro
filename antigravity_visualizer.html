@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shuja Anti-Gravity - Multi-Thread Download Visualizer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Matter.js Physics Engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0B132B;
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: #F8FAFC;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 50% 50%, #0F172A 0%, #0B132B 80%, #050B14 100%);
+        }
+
+        /* Glassmorphic Top HUD */
+        .hud-header {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            right: 16px;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            background: rgba(17, 27, 56, 0.75);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: 14px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            pointer-events: auto;
+        }
+
+        .hud-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .hud-logo {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #06B6D4, #3B82F6, #8B5CF6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.5);
+        }
+
+        .hud-titles h1 {
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            background: linear-gradient(90deg, #38BDF8, #818CF8, #C084FC);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+        }
+
+        .hud-titles p {
+            font-size: 11px;
+            color: #94A3B8;
+            font-weight: 500;
+        }
+
+        /* Center Stats Pill */
+        .hud-metrics {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: rgba(11, 19, 43, 0.8);
+            padding: 6px 16px;
+            border-radius: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+
+        .metric-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .metric-label {
+            color: #64748B;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        .metric-val {
+            color: #38BDF8;
+            font-weight: 700;
+        }
+
+        .metric-val.speed {
+            color: #10B981;
+        }
+
+        .metric-val.green {
+            color: #10B981;
+        }
+
+        /* Control Buttons */
+        .hud-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-hud {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(30, 41, 59, 0.8);
+            color: #E2E8F0;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(8px);
+        }
+
+        .btn-hud:hover {
+            background: rgba(51, 65, 85, 0.9);
+            border-color: rgba(56, 189, 248, 0.4);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(6, 182, 212, 0.25);
+            color: #FFFFFF;
+        }
+
+        .btn-hud:active {
+            transform: translateY(0);
+        }
+
+        .btn-hud.primary {
+            background: linear-gradient(135deg, #0284C7, #2563EB);
+            border-color: #38BDF8;
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.4);
+        }
+
+        .btn-hud.primary:hover {
+            background: linear-gradient(135deg, #0369A1, #1D4ED8);
+            box-shadow: 0 0 22px rgba(56, 189, 248, 0.6);
+        }
+
+        .btn-hud.danger {
+            background: rgba(220, 38, 38, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #FCA5A5;
+        }
+
+        .btn-hud.danger:hover {
+            background: rgba(220, 38, 38, 0.4);
+            border-color: #EF4444;
+            color: #FFF;
+        }
+
+        /* Bottom Floating Instructions Bar */
+        .bottom-bar {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 18px;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 30px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+            font-size: 12px;
+            color: #94A3B8;
+            pointer-events: auto;
+        }
+
+        .bottom-bar code {
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(56, 189, 248, 0.15);
+            color: #38BDF8;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        /* Floating Completed Banner */
+        .complete-banner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            z-index: 20;
+            background: rgba(6, 78, 59, 0.95);
+            backdrop-filter: blur(16px);
+            border: 2px solid #10B981;
+            box-shadow: 0 0 50px rgba(16, 185, 129, 0.5);
+            border-radius: 16px;
+            padding: 24px 36px;
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .complete-banner.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+            pointer-events: auto;
+        }
+
+        .complete-banner h2 {
+            font-size: 24px;
+            font-weight: 800;
+            color: #ECFDF5;
+            margin-bottom: 6px;
+        }
+
+        .complete-banner p {
+            font-size: 14px;
+            color: #A7F3D0;
+            margin-bottom: 16px;
+        }
+
+        .complete-banner button {
+            background: #10B981;
+            color: #064E3B;
+            border: none;
+            padding: 8px 20px;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        /* Mouse Drag Laser Line Effect */
+        #laser-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+    </style>
+</head>
+<body>
+    <!-- Top HUD Bar -->
+    <header class="hud-header">
+        <div class="hud-brand">
+            <div class="hud-logo">🌌</div>
+            <div class="hud-titles">
+                <h1>Shuja Anti-Gravity Visualizer</h1>
+                <p>8-Thread Zero-G Physics Engine • Matter.js Dynamics</p>
+            </div>
+        </div>
+
+        <div class="hud-metrics">
+            <div class="metric-item">
+                <span class="metric-label">Threads:</span>
+                <span class="metric-val" id="metric-threads">8 Active</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Progress:</span>
+                <span class="metric-val" id="metric-percent">0.0%</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Speed:</span>
+                <span class="metric-val speed" id="metric-speed">0.00 MB/s</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Gravity:</span>
+                <span class="metric-val" id="metric-gravity">0.0G (Zero-G)</span>
+            </div>
+        </div>
+
+        <div class="hud-controls">
+            <button class="btn-hud primary" id="btn-simulate" title="Simulate 8-thread download progression">
+                <span>⚡</span>
+                <span id="txt-simulate">Simulate Download</span>
+            </button>
+            <button class="btn-hud" id="btn-toggle-gravity" title="Toggle zero-gravity floating vs normal falling">
+                <span>🚀</span>
+                <span id="txt-gravity">Zero-G Mode</span>
+            </button>
+            <button class="btn-hud" id="btn-blast" title="Apply impulse explosion to all floating bodies">
+                <span>💥</span>
+                <span>Cosmic Blast</span>
+            </button>
+            <button class="btn-hud danger" id="btn-reset" title="Reset all chunks to 0% and float">
+                <span>🔄</span>
+                <span>Reset</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Physics Canvas Container -->
+    <div id="canvas-container">
+        <canvas id="physics-canvas"></canvas>
+        <canvas id="laser-canvas"></canvas>
+    </div>
+
+    <!-- Bottom Instructions Footer -->
+    <div class="bottom-bar">
+        <span>🎮 <strong>Controls:</strong> Click &amp; throw chunks across the screen. Completed chunks drop to the floor!</span>
+        <span>•</span>
+        <span>Bridge: <code>window.updateChunkProgress(id, %, speed)</code></span>
+    </div>
+
+    <!-- Completed Modal Banner -->
+    <div class="complete-banner" id="complete-banner">
+        <h2>🎉 All Chunks Assembled!</h2>
+        <p>100% Download Completed • 8 Parallel Streams Muxed &amp; Grounded</p>
+        <button id="btn-banner-reset">Float Chunks Again</button>
+    </div>
+
+    <script>
+        // ---------------------------------------------------------------------------
+        // 1. Matter.js Initialization & Setup
+        // ---------------------------------------------------------------------------
+        const {
+            Engine,
+            Render,
+            Runner,
+            Bodies,
+            Body,
+            Composite,
+            Constraint,
+            Mouse,
+            MouseConstraint,
+            Events,
+            Vector
+        } = Matter;
+
+        const canvas = document.getElementById('physics-canvas');
+        const laserCanvas = document.getElementById('laser-canvas');
+        const ctx = canvas.getContext('2d');
+        const laserCtx = laserCanvas.getContext('2d');
+
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+
+        function resizeCanvases() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            laserCanvas.width = width;
+            laserCanvas.height = height;
+        }
+        resizeCanvases();
+
+        // Create Physics Engine with EXPLICIT ZERO-GRAVITY
+        const engine = Engine.create({
+            gravity: { x: 0, y: 0, scale: 0.001 }
+        });
+        const world = engine.world;
+        world.gravity.y = 0; // Environment starts at ZERO gravity!
+
+        // ---------------------------------------------------------------------------
+        // 2. Boundary Walls (Static Enclosure)
+        // ---------------------------------------------------------------------------
+        const wallThickness = 120;
+        let walls = [];
+
+        function createWalls() {
+            if (walls.length > 0) {
+                Composite.remove(world, walls);
+                walls = [];
+            }
+            const wallOpts = {
+                isStatic: true,
+                restitution: 0.85,
+                friction: 0.1,
+                render: { visible: false }
+            };
+
+            const floor   = Bodies.rectangle(width / 2, height + wallThickness / 2 - 2, width * 2, wallThickness, wallOpts);
+            const ceiling = Bodies.rectangle(width / 2, -wallThickness / 2 + 2, width * 2, wallThickness, wallOpts);
+            const left    = Bodies.rectangle(-wallThickness / 2 + 2, height / 2, wallThickness, height * 2, wallOpts);
+            const right   = Bodies.rectangle(width + wallThickness / 2 - 2, height / 2, wallThickness, height * 2, wallOpts);
+
+            walls = [floor, ceiling, left, right];
+            Composite.add(world, walls);
+        }
+        createWalls();
+
+        // ---------------------------------------------------------------------------
+        // 3. Chunk Cards Data & Physics Bodies (8 Streams)
+        // ---------------------------------------------------------------------------
+        const chunks = [];
+        const baseWidth = 175;
+        const baseHeight = 96;
+
+        // Position 8 chunks in a clean 2x4 grid initially in the central space
+        const cols = 4;
+        const rows = 2;
+        const spacingX = Math.min(220, (width * 0.75) / cols);
+        const spacingY = 140;
+        const startX = width / 2 - ((cols - 1) * spacingX) / 2;
+        const startY = height / 2 - ((rows - 1) * spacingY) / 2 + 20;
+
+        for (let i = 1; i <= 8; i++) {
+            const col = (i - 1) % cols;
+            const row = Math.floor((i - 1) / cols);
+            const posX = startX + col * spacingX + (Math.random() - 0.5) * 30;
+            const posY = startY + row * spacingY + (Math.random() - 0.5) * 30;
+
+            const body = Bodies.rectangle(posX, posY, baseWidth, baseHeight, {
+                restitution: 0.82,     // High bounciness
+                frictionAir: 0.007,     // Smooth drifting in zero-G
+                friction: 0.05,
+                density: 0.001,
+                chamfer: { radius: 10 }
+            });
+
+            // Gentle initial cosmic drift
+            Body.setVelocity(body, {
+                x: (Math.random() - 0.5) * 1.8,
+                y: (Math.random() - 0.5) * 1.8
+            });
+            Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.02);
+
+            const chunkData = {
+                id: i,
+                percent: 0.0,
+                speedMBs: 0.0,
+                status: 'WAIT', // 'WAIT', 'BUSY', 'DONE'
+                isCompleted: false,
+                currentScale: 1.0,
+                baseMass: body.mass,
+                baseWidth: baseWidth,
+                baseHeight: baseHeight,
+                body: body,
+                hue: 190 + (i * 12) % 60, // Slight cyan/blue variance
+                flashPulse: 0
+            };
+
+            body.chunkData = chunkData;
+            chunks.push(chunkData);
+            Composite.add(world, body);
+        }
+
+        // ---------------------------------------------------------------------------
+        // 4. Mouse Constraint for Google Anti-Gravity Grabbing & Flinging
+        // ---------------------------------------------------------------------------
+        const mouse = Mouse.create(canvas);
+        const mouseConstraint = MouseConstraint.create(engine, {
+            mouse: mouse,
+            constraint: {
+                stiffness: 0.25,
+                damping: 0.05,
+                render: { visible: false }
+            }
+        });
+        Composite.add(world, mouseConstraint);
+
+        // Track drag state for glowing visual tether
+        let draggedBody = null;
+        Events.on(mouseConstraint, 'startdrag', function(event) {
+            draggedBody = event.body;
+        });
+        Events.on(mouseConstraint, 'enddrag', function() {
+            draggedBody = null;
+        });
+
+        // ---------------------------------------------------------------------------
+        // 5. Ambient Space Dust & Particle Spark System
+        // ---------------------------------------------------------------------------
+        const stars = [];
+        for (let s = 0; s < 100; s++) {
+            stars.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                size: Math.random() * 2 + 0.6,
+                alpha: Math.random() * 0.7 + 0.2,
+                speedX: (Math.random() - 0.5) * 0.3,
+                speedY: (Math.random() - 0.5) * 0.3
+            });
+        }
+
+        const particles = [];
+        function createExplosion(x, y, color = '#10B981', count = 25) {
+            for (let p = 0; p < count; p++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 6 + 2;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    color: color,
+                    size: Math.random() * 3 + 2,
+                    alpha: 1.0,
+                    decay: Math.random() * 0.03 + 0.015
+                });
+            }
+        }
+
+        // Card collision sparks
+        Events.on(engine, 'collisionStart', function(event) {
+            const pairs = event.pairs;
+            for (let i = 0; i < pairs.length; i++) {
+                const pair = pairs[i];
+                if (pair.bodyA.chunkData || pair.bodyB.chunkData) {
+                    const contact = pair.collision.supports[0] || pair.bodyA.position;
+                    const isDone = (pair.bodyA.chunkData?.isCompleted || pair.bodyB.chunkData?.isCompleted);
+                    const color = isDone ? '#10B981' : '#38BDF8';
+                    createExplosion(contact.x, contact.y, color, 8);
+                }
+            }
+        });
+
+        // ---------------------------------------------------------------------------
+        // 6. Global JavaScript Update Bridge: window.updateChunkProgress
+        // ---------------------------------------------------------------------------
+        window.updateChunkProgress = function(chunkId, percent, speedMBs) {
+            const id = Number(chunkId);
+            const chunk = chunks.find(c => c.id === id);
+            if (!chunk) return;
+
+            const prevPercent = chunk.percent;
+            chunk.percent = Math.min(100.0, Math.max(0.0, Number(percent) || 0.0));
+            chunk.speedMBs = Math.max(0.0, Number(speedMBs) || 0.0);
+
+            // Transition state
+            if (chunk.percent >= 100.0) {
+                chunk.status = 'DONE';
+                if (!chunk.isCompleted) {
+                    chunk.isCompleted = true;
+                    chunk.flashPulse = 1.0;
+                    createExplosion(chunk.body.position.x, chunk.body.position.y, '#10B981', 35);
+                    checkAllCompleted();
+                }
+            } else if (chunk.percent > 0.0) {
+                chunk.status = 'BUSY';
+            } else {
+                chunk.status = 'WAIT';
+            }
+
+            // Dynamic Growth & Mass Scaling (1.0x to 1.35x visual size)
+            const targetScale = 1.0 + (chunk.percent / 100.0) * 0.35;
+            const scaleFactor = targetScale / chunk.currentScale;
+
+            if (Math.abs(scaleFactor - 1.0) > 0.0005) {
+                Body.scale(chunk.body, scaleFactor, scaleFactor);
+                chunk.currentScale = targetScale;
+
+                // Increase mass so larger chunks are heavier when thrown
+                const newMass = chunk.baseMass * (1.0 + (chunk.percent / 100.0) * 1.5);
+                Body.setMass(chunk.body, newMass);
+            }
+
+            updateMetricsDisplay();
+        };
+
+        // Expose batch update bridge
+        window.updateAllChunks = function(chunkArray) {
+            if (Array.isArray(chunkArray)) {
+                chunkArray.forEach(item => {
+                    if (item && item.id) {
+                        window.updateChunkProgress(item.id, item.percent, item.speed);
+                    }
+                });
+            }
+        };
+
+        function checkAllCompleted() {
+            const allDone = chunks.every(c => c.isCompleted);
+            if (allDone) {
+                document.getElementById('complete-banner').classList.add('show');
+            }
+        }
+
+        function updateMetricsDisplay() {
+            let totalPct = 0;
+            let totalSpd = 0;
+            chunks.forEach(c => {
+                totalPct += c.percent;
+                totalSpd += c.speedMBs;
+            });
+            const avgPct = (totalPct / chunks.length).toFixed(1);
+            document.getElementById('metric-percent').textContent = `${avgPct}%`;
+            document.getElementById('metric-speed').textContent = `${totalSpd.toFixed(2)} MB/s`;
+        }
+
+        // ---------------------------------------------------------------------------
+        // 7. Engine Physics Tick Loop (Local Downward Gravity for Completed Chunks)
+        // ---------------------------------------------------------------------------
+        let globalZeroG = true;
+
+        Events.on(engine, 'beforeUpdate', function() {
+            chunks.forEach(chunk => {
+                // If chunk reaches 100% (DONE), apply local downward gravity so it drops to floor!
+                if (chunk.isCompleted) {
+                    // Downward force = mass * g
+                    const dropForce = 0.0035 * chunk.body.mass;
+                    Body.applyForce(chunk.body, chunk.body.position, {
+                        x: 0,
+                        y: dropForce
+                    });
+                }
+            });
+        });
+
+        // ---------------------------------------------------------------------------
+        // 8. Custom High-DPI Neon Render Loop
+        // ---------------------------------------------------------------------------
+        function renderScene() {
+            ctx.clearRect(0, 0, width, height);
+
+            // 1. Draw Space Dust & Background Stars
+            stars.forEach(star => {
+                star.x += star.speedX;
+                star.y += star.speedY;
+                if (star.x < 0) star.x = width;
+                if (star.x > width) star.x = 0;
+                if (star.y < 0) star.y = height;
+                if (star.y > height) star.y = 0;
+
+                ctx.fillStyle = `rgba(148, 163, 184, ${star.alpha})`;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // 2. Draw Particles & Sparks
+            for (let p = particles.length - 1; p >= 0; p--) {
+                const pt = particles[p];
+                pt.x += pt.vx;
+                pt.y += pt.vy;
+                pt.alpha -= pt.decay;
+                if (pt.alpha <= 0) {
+                    particles.splice(p, 1);
+                    continue;
+                }
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, pt.alpha);
+                ctx.fillStyle = pt.color;
+                ctx.shadowColor = pt.color;
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // 3. Draw Laser Drag Tether
+            laserCtx.clearRect(0, 0, width, height);
+            if (draggedBody && mouseConstraint.constraint.pointA) {
+                const anchor = draggedBody.position;
+                const mPos = mouse.position;
+
+                laserCtx.save();
+                laserCtx.strokeStyle = draggedBody.chunkData?.isCompleted ? '#10B981' : '#38BDF8';
+                laserCtx.lineWidth = 3;
+                laserCtx.shadowColor = laserCtx.strokeStyle;
+                laserCtx.shadowBlur = 15;
+                laserCtx.beginPath();
+                laserCtx.moveTo(mPos.x, mPos.y);
+                laserCtx.lineTo(anchor.x, anchor.y);
+                laserCtx.stroke();
+
+                // Mouse grab reticle
+                laserCtx.fillStyle = '#FFFFFF';
+                laserCtx.beginPath();
+                laserCtx.arc(mPos.x, mPos.y, 5, 0, Math.PI * 2);
+                laserCtx.fill();
+                laserCtx.restore();
+            }
+
+            // 4. Draw Floating Chunk Cards
+            chunks.forEach(chunk => {
+                const body = chunk.body;
+                const w = chunk.baseWidth * chunk.currentScale;
+                const h = chunk.baseHeight * chunk.currentScale;
+                const r = 12 * chunk.currentScale;
+
+                ctx.save();
+                ctx.translate(body.position.x, body.position.y);
+                ctx.rotate(body.angle);
+
+                const isDone = chunk.isCompleted;
+                const isBusy = chunk.status === 'BUSY';
+
+                // Neon Colors
+                let borderColor = '#38BDF8';
+                let glowColor = 'rgba(56, 189, 248, 0.4)';
+                let glowBlur = 16;
+                let bgGradientStart = '#131D38';
+                let bgGradientEnd = '#0B132B';
+
+                if (isDone) {
+                    borderColor = '#10B981';
+                    glowColor = 'rgba(16, 185, 129, 0.65)';
+                    glowBlur = 26;
+                    bgGradientStart = '#064E3B';
+                    bgGradientEnd = '#022C22';
+                } else if (!isBusy && chunk.percent === 0) {
+                    borderColor = '#334155';
+                    glowColor = 'rgba(51, 65, 85, 0.2)';
+                    glowBlur = 8;
+                }
+
+                // Flash pulse on completion
+                if (chunk.flashPulse > 0) {
+                    glowBlur += chunk.flashPulse * 40;
+                    chunk.flashPulse -= 0.03;
+                }
+
+                // Card Background & Neon Border Glow
+                ctx.shadowColor = glowColor;
+                ctx.shadowBlur = glowBlur;
+
+                const bgGrad = ctx.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2);
+                bgGrad.addColorStop(0, bgGradientStart);
+                bgGrad.addColorStop(1, bgGradientEnd);
+
+                ctx.fillStyle = bgGrad;
+                ctx.strokeStyle = borderColor;
+                ctx.lineWidth = isDone ? 2.5 : 2.0;
+
+                ctx.beginPath();
+                ctx.roundRect(-w / 2, -h / 2, w, h, r);
+                ctx.fill();
+                ctx.stroke();
+
+                // Reset shadow for crisp text rendering
+                ctx.shadowColor = 'transparent';
+                ctx.shadowBlur = 0;
+
+                // Inner Glass Tint Overlay
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+                ctx.beginPath();
+                ctx.roundRect(-w / 2 + 2, -h / 2 + 2, w - 4, (h - 4) / 2, [r, r, 0, 0]);
+                ctx.fill();
+
+                // Content Padding
+                const padX = 14 * chunk.currentScale;
+                const padY = 12 * chunk.currentScale;
+
+                // Header Row: Label & Status Badge
+                ctx.font = `800 ${11 * chunk.currentScale}px 'Outfit', sans-serif`;
+                ctx.fillStyle = isDone ? '#6EE7B7' : '#E2E8F0';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                ctx.fillText(`Chunk #${chunk.id}`, -w / 2 + padX, -h / 2 + padY);
+
+                // Status Badge Pill (Right)
+                const badgeText = chunk.status;
+                const badgeW = 42 * chunk.currentScale;
+                const badgeH = 16 * chunk.currentScale;
+                const badgeX = w / 2 - padX - badgeW;
+                const badgeY = -h / 2 + padY - 2;
+
+                let badgeBg = '#334155';
+                let badgeFg = '#94A3B8';
+                if (isDone) {
+                    badgeBg = '#059669';
+                    badgeFg = '#FFFFFF';
+                } else if (isBusy) {
+                    badgeBg = '#0284C7';
+                    badgeFg = '#FFFFFF';
+                }
+
+                ctx.fillStyle = badgeBg;
+                ctx.beginPath();
+                ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4 * chunk.currentScale);
+                ctx.fill();
+
+                ctx.font = `700 ${9 * chunk.currentScale}px 'Outfit', sans-serif`;
+                ctx.fillStyle = badgeFg;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(badgeText, badgeX + badgeW / 2, badgeY + badgeH / 2);
+
+                // Progress Bar (Middle)
+                const barY = 2 * chunk.currentScale;
+                const barW = w - (padX * 2);
+                const barH = 7 * chunk.currentScale;
+
+                // Bar Track
+                ctx.fillStyle = '#0F172A';
+                ctx.beginPath();
+                ctx.roundRect(-w / 2 + padX, barY, barW, barH, 4 * chunk.currentScale);
+                ctx.fill();
+
+                // Bar Fill
+                const fillW = Math.max(0, Math.min(barW, (chunk.percent / 100.0) * barW));
+                if (fillW > 0) {
+                    const fillGrad = ctx.createLinearGradient(-w / 2 + padX, 0, -w / 2 + padX + fillW, 0);
+                    if (isDone) {
+                        fillGrad.addColorStop(0, '#10B981');
+                        fillGrad.addColorStop(1, '#34D399');
+                    } else {
+                        fillGrad.addColorStop(0, '#06B6D4');
+                        fillGrad.addColorStop(0.5, '#3B82F6');
+                        fillGrad.addColorStop(1, '#8B5CF6');
+                    }
+                    ctx.fillStyle = fillGrad;
+                    ctx.beginPath();
+                    ctx.roundRect(-w / 2 + padX, barY, fillW, barH, 4 * chunk.currentScale);
+                    ctx.fill();
+                }
+
+                // Stats Row (Bottom)
+                const statsY = h / 2 - padY - (12 * chunk.currentScale);
+                ctx.font = `600 ${10 * chunk.currentScale}px 'JetBrains Mono', monospace`;
+                ctx.fillStyle = '#94A3B8';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(`${chunk.percent.toFixed(1)}%`, -w / 2 + padX, statsY + (12 * chunk.currentScale));
+
+                ctx.fillStyle = isDone ? '#10B981' : (chunk.speedMBs > 0 ? '#38BDF8' : '#64748B');
+                ctx.textAlign = 'right';
+                ctx.fillText(
+                    isDone ? 'DONE (100%)' : `${chunk.speedMBs.toFixed(2)} MB/s`,
+                    w / 2 - padX,
+                    statsY + (12 * chunk.currentScale)
+                );
+
+                ctx.restore();
+            });
+
+            requestAnimationFrame(renderScene);
+        }
+
+        // Start Physics Runner & Render Loop
+        const runner = Runner.create();
+        Runner.run(runner, engine);
+        requestAnimationFrame(renderScene);
+
+        // ---------------------------------------------------------------------------
+        // 9. Interactive HUD Controls & Actions
+        // ---------------------------------------------------------------------------
+        // Zero-G Toggle
+        const btnToggleGravity = document.getElementById('btn-toggle-gravity');
+        const txtGravity = document.getElementById('txt-gravity');
+        const metricGravity = document.getElementById('metric-gravity');
+
+        btnToggleGravity.addEventListener('click', () => {
+            globalZeroG = !globalZeroG;
+            if (globalZeroG) {
+                world.gravity.y = 0;
+                txtGravity.textContent = "Zero-G Mode";
+                metricGravity.textContent = "0.0G (Zero-G)";
+                metricGravity.className = "metric-val";
+            } else {
+                world.gravity.y = 1.0;
+                txtGravity.textContent = "Earth Gravity";
+                metricGravity.textContent = "1.0G (Earth)";
+                metricGravity.className = "metric-val green";
+            }
+        });
+
+        // Cosmic Blast (Fling All Bodies)
+        document.getElementById('btn-blast').addEventListener('click', () => {
+            chunks.forEach(chunk => {
+                const angle = Math.random() * Math.PI * 2;
+                const forceMag = (Math.random() * 0.05 + 0.02) * chunk.body.mass;
+                Body.applyForce(chunk.body, chunk.body.position, {
+                    x: Math.cos(angle) * forceMag,
+                    y: Math.sin(angle) * forceMag
+                });
+                Body.setAngularVelocity(chunk.body, (Math.random() - 0.5) * 0.2);
+            });
+            createExplosion(width / 2, height / 2, '#38BDF8', 50);
+        });
+
+        // Reset
+        function resetSimulation() {
+            document.getElementById('complete-banner').classList.remove('show');
+            stopSimulation();
+
+            chunks.forEach((chunk, idx) => {
+                const col = idx % cols;
+                const row = Math.floor(idx / cols);
+                const posX = startX + col * spacingX;
+                const posY = startY + row * spacingY;
+
+                // Reset scale
+                if (chunk.currentScale !== 1.0) {
+                    Body.scale(chunk.body, 1.0 / chunk.currentScale, 1.0 / chunk.currentScale);
+                    chunk.currentScale = 1.0;
+                }
+
+                Body.setPosition(chunk.body, { x: posX, y: posY });
+                Body.setVelocity(chunk.body, {
+                    x: (Math.random() - 0.5) * 2,
+                    y: (Math.random() - 0.5) * 2
+                });
+                Body.setAngle(chunk.body, 0);
+                Body.setAngularVelocity(chunk.body, (Math.random() - 0.5) * 0.02);
+                Body.setMass(chunk.body, chunk.baseMass);
+
+                chunk.percent = 0.0;
+                chunk.speedMBs = 0.0;
+                chunk.status = 'WAIT';
+                chunk.isCompleted = false;
+                chunk.flashPulse = 0;
+            });
+
+            updateMetricsDisplay();
+        }
+
+        document.getElementById('btn-reset').addEventListener('click', resetSimulation);
+        document.getElementById('btn-banner-reset').addEventListener('click', resetSimulation);
+
+        // ---------------------------------------------------------------------------
+        // 10. Automated 8-Thread Download Simulator
+        // ---------------------------------------------------------------------------
+        let simInterval = null;
+        let isSimulating = false;
+        const btnSimulate = document.getElementById('btn-simulate');
+        const txtSimulate = document.getElementById('txt-simulate');
+
+        function startSimulation() {
+            isSimulating = true;
+            btnSimulate.classList.add('danger');
+            btnSimulate.classList.remove('primary');
+            txtSimulate.textContent = "Stop Simulation";
+
+            // If already complete, reset first
+            if (chunks.every(c => c.isCompleted)) {
+                resetSimulation();
+                isSimulating = true;
+                btnSimulate.classList.add('danger');
+                txtSimulate.textContent = "Stop Simulation";
+            }
+
+            simInterval = setInterval(() => {
+                let anyActive = false;
+                chunks.forEach(chunk => {
+                    if (chunk.percent < 100) {
+                        anyActive = true;
+                        // Random speed between 2.5 and 7.5 MB/s
+                        const speed = Math.random() * 5.0 + 2.5;
+                        const inc = Math.random() * 2.8 + 0.8;
+                        window.updateChunkProgress(chunk.id, chunk.percent + inc, speed);
+                    } else {
+                        chunk.speedMBs = 0;
+                    }
+                });
+
+                if (!anyActive) {
+                    stopSimulation();
+                }
+            }, 120);
+        }
+
+        function stopSimulation() {
+            isSimulating = false;
+            clearInterval(simInterval);
+            simInterval = null;
+            btnSimulate.classList.remove('danger');
+            btnSimulate.classList.add('primary');
+            txtSimulate.textContent = "Simulate Download";
+        }
+
+        btnSimulate.addEventListener('click', () => {
+            if (isSimulating) {
+                stopSimulation();
+            } else {
+                startSimulation();
+            }
+        });
+
+        // ---------------------------------------------------------------------------
+        // 11. Live Sync via Localhost / File Polling (If Active)
+        // ---------------------------------------------------------------------------
+        // Poll for shuja_antigravity_sync.json if served or accessible
+        async function pollLocalSync() {
+            try {
+                const resp = await fetch('shuja_antigravity_sync.json?t=' + Date.now());
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (data && data.chunks && Array.isArray(data.chunks)) {
+                        data.chunks.forEach(c => {
+                            window.updateChunkProgress(c.id, c.percent, c.speed);
+                        });
+                    }
+                }
+            } catch (e) {
+                // Ignore silent network errors when running purely offline/file://
+            }
+        }
+        setInterval(pollLocalSync, 200);
+
+        // Window Resize Handler
+        window.addEventListener('resize', () => {
+            resizeCanvases();
+            createWalls();
+        });
+    </script>
+</body>
+</html>

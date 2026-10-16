@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LinkIcon } from '../constants';
+import { Link as LinkIcon } from 'lucide-react';
 
 interface UrlInputProps {
   onAnalyze: (url: string) => void;

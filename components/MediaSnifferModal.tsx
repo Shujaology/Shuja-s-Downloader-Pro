@@ -1,13 +1,13 @@
 import React, { useRef } from 'react';
-import { X, Play, MonitorPlay, Film, Sparkles } from 'lucide-react';
+import { X, MonitorPlay, Film } from 'lucide-react';
 import { FloatingVideoBar } from './FloatingVideoBar';
-import type { FormatOption, IDMSettings } from '../types';
+import type { IDMSettings } from '../types';
 
 interface MediaSnifferModalProps {
   isOpen: boolean;
   settings: IDMSettings;
   onClose: () => void;
-  onCaptureVideo: (videoUrl: string, format: FormatOption) => void;
+  onCaptureVideo: (videoUrl: string) => void;
 }
 
 export const MediaSnifferModal: React.FC<MediaSnifferModalProps> = ({
@@ -56,15 +56,15 @@ export const MediaSnifferModal: React.FC<MediaSnifferModalProps> = ({
             <div>
               <h3 className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-1.5">
                 <Film className="w-4 h-4 text-blue-500" />
-                <span>Web Browser Video Integration Simulation</span>
+                <span>Direct Sample Video Download Test</span>
               </h3>
               <p className="text-gray-500 text-[11px]">
-                Notice the iconic IDM floating download panel hovering right on top of the video player!
+                The button downloads the sample MP4 URL directly; it does not detect streams from other websites.
               </p>
             </div>
             <span className="px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20 text-[11px] flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-              Stream Sniffer Active
+              Sample URL Ready
             </span>
           </div>
 
@@ -72,12 +72,10 @@ export const MediaSnifferModal: React.FC<MediaSnifferModalProps> = ({
             {/* The Floating IDM Bar placed right on the video player top right! */}
             <div className="absolute top-3 right-3 z-30">
               <FloatingVideoBar
-                onCaptureVideo={(url, fmt) => {
-                  onCaptureVideo(url, fmt);
+                onCaptureVideo={(url) => {
+                  onCaptureVideo(url);
                   onClose();
                 }}
-                isOpen={true}
-                onToggle={() => {}}
               />
             </div>
 
@@ -94,7 +92,7 @@ export const MediaSnifferModal: React.FC<MediaSnifferModalProps> = ({
 
           <div className="flex items-center justify-between pt-2 border-t border-gray-300 dark:border-gray-700 text-[11px]">
             <span className="text-gray-500">
-              Click the floating blue <strong>"Download this video with SDM ▾"</strong> button to capture this video!
+              Click <strong>"Download sample video"</strong> to add the MP4 URL to the download queue.
             </span>
             <button
               onClick={onClose}

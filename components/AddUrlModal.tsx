@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Link2, Download, Clipboard, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { X, Link2, Download, Clipboard, Sparkles } from 'lucide-react';
 import { SAMPLE_TEST_URLS } from '../constants';
 import type { IDMSettings } from '../types';
 
@@ -19,10 +19,6 @@ export const AddUrlModal: React.FC<AddUrlModalProps> = ({
   const isDark = settings.theme === 'windows-dark';
   const [url, setUrl] = useState('');
   const [directDownload, setDirectDownload] = useState(false);
-  const [showAuth, setShowAuth] = useState(false);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [referrer, setReferrer] = useState('');
 
   // Auto-detect clipboard on open if valid URL
   useEffect(() => {
@@ -127,7 +123,7 @@ export const AddUrlModal: React.FC<AddUrlModalProps> = ({
           <div className={`p-2.5 rounded border text-[11px] ${isDark ? 'bg-[#1e1e1e] border-[#333333]' : 'bg-[#fafafa] border-[#e0e0e0]'}`}>
             <div className="font-semibold text-gray-500 mb-1.5 flex items-center gap-1">
               <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>Or click a sample link to test instantly:</span>
+              <span>Or try a sample direct-file URL:</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {SAMPLE_TEST_URLS.map(sample => (
@@ -161,57 +157,10 @@ export const AddUrlModal: React.FC<AddUrlModalProps> = ({
             </label>
           </div>
 
-          {/* Authorization toggle */}
-          <div>
-            <button
-              type="button"
-              onClick={() => setShowAuth(!showAuth)}
-              className="text-[11px] text-gray-500 hover:text-blue-500 flex items-center gap-1"
-            >
-              {showAuth ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              <span>Authentication / Referrer (Optional)</span>
-            </button>
-
-            {showAuth && (
-              <div className="mt-2 p-2.5 rounded border space-y-2 text-[11px] bg-black/5 dark:bg-white/5 border-gray-300 dark:border-gray-700">
-                <div>
-                  <label className="block text-gray-500 mb-0.5">Referrer URL:</label>
-                  <input
-                    type="text"
-                    value={referrer}
-                    onChange={e => setReferrer(e.target.value)}
-                    placeholder="https://..."
-                    className={`w-full px-2 py-1 rounded border outline-none text-xs ${
-                      isDark ? 'bg-[#1e1e1e] border-[#444444]' : 'bg-white border-[#cccccc]'
-                    }`}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-gray-500 mb-0.5">User:</label>
-                    <input
-                      type="text"
-                      value={username}
-                      onChange={e => setUsername(e.target.value)}
-                      className={`w-full px-2 py-1 rounded border outline-none text-xs ${
-                        isDark ? 'bg-[#1e1e1e] border-[#444444]' : 'bg-white border-[#cccccc]'
-                      }`}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-500 mb-0.5">Password:</label>
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      className={`w-full px-2 py-1 rounded border outline-none text-xs ${
-                        isDark ? 'bg-[#1e1e1e] border-[#444444]' : 'bg-white border-[#cccccc]'
-                      }`}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
+          <div className={`rounded border p-2.5 text-[11px] ${
+            isDark ? 'bg-[#1e1e1e] border-[#333333] text-gray-400' : 'bg-[#fafafa] border-[#e0e0e0] text-gray-500'
+          }`}>
+            Custom referrer and authentication-header controls are not available yet. Use a direct file URL accessible without those headers.
           </div>
 
           {/* Action Buttons */}

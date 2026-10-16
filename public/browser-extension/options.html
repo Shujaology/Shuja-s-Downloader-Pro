@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Shuja Downloader Pro Extension</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <main>
+      <h1>Shuja Downloader Pro</h1>
+      <p>Connect this extension to the downloader running on this PC.</p>
+      <label class="service-label" for="serviceUrl">Local service URL</label>
+      <input id="serviceUrl" type="url" value="http://127.0.0.1:3001">
+      <label class="enable-row">
+        <input id="enabled" type="checkbox">
+        <span>Enable sending links to my local downloader</span>
+      </label>
+      <label class="enable-row">
+        <input id="captureDownloads" type="checkbox">
+        <span>Automatically capture browser downloads (experimental)</span>
+      </label>
+      <div class="actions">
+        <button id="save" type="button">Save settings</button>
+        <button id="test" type="button">Test connection</button>
+      </div>
+      <p id="status" role="status"></p>
+      <p class="hint">Use the right-click menu to send a link or the toolbar button to send the current page. Automatic capture is separately opt-in; it cancels the browser copy only after the local service accepts the download. Authenticated downloads may not work because browser cookies and headers are not transferred.</p>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>

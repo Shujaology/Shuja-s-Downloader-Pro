@@ -14,7 +14,7 @@ export const MOCK_FORMATS: FormatOption[] = [
 ];
 
 export const INITIAL_SETTINGS: IDMSettings = {
-  theme: 'windows-classic',
+  theme: 'windows-dark',
   saveDirectory: 'C:\\Users\\Shuja\\Downloads',
   categoriesDirs: {
     compressed: 'C:\\Users\\Shuja\\Downloads\\Compressed',
@@ -65,148 +65,7 @@ export const SAMPLE_TEST_URLS = [
   },
 ];
 
-export const INITIAL_DOWNLOADS: DownloadItem[] = [
-  {
-    id: 'idm-init-1',
-    title: 'Visual Studio Code 1.95 Setup.exe',
-    url: 'https://code.visualstudio.com/sha/download?build=stable&os=win32-x64-user',
-    category: 'programs',
-    queue: 'main',
-    progress: 100,
-    totalBytes: 98540000,
-    downloadedBytes: 98540000,
-    speed: 'Complete',
-    speedBps: 0,
-    timeLeft: 'Finished',
-    status: 'completed',
-    dateAdded: '2026-09-30 14:15',
-    savePath: 'C:\\Users\\Shuja\\Downloads\\Programs\\VSCodeSetup.exe',
-    connections: 8,
-    segments: Array.from({ length: 8 }, (_, i) => ({
-      id: i + 1,
-      startByte: i * 12317500,
-      endByte: (i + 1) * 12317500,
-      downloadedBytes: 12317500,
-      progress: 100,
-      currentSpeed: 'Done',
-      status: 'done',
-    })),
-    description: 'Microsoft Code Editor Setup x64',
-    resumeSupported: true,
-  },
-  {
-    id: 'idm-init-2',
-    title: 'Cyberpunk 2077 4K HDR Wallpaper Pack.zip',
-    url: 'https://assets.shuja.media/packs/cyberpunk_4k_pack.zip',
-    category: 'compressed',
-    queue: 'main',
-    progress: 100,
-    totalBytes: 425800000,
-    downloadedBytes: 425800000,
-    speed: 'Complete',
-    speedBps: 0,
-    timeLeft: 'Finished',
-    status: 'completed',
-    dateAdded: '2026-09-30 15:02',
-    savePath: 'C:\\Users\\Shuja\\Downloads\\Compressed\\cyberpunk_4k_pack.zip',
-    connections: 8,
-    segments: Array.from({ length: 8 }, (_, i) => ({
-      id: i + 1,
-      startByte: i * 53225000,
-      endByte: (i + 1) * 53225000,
-      downloadedBytes: 53225000,
-      progress: 100,
-      currentSpeed: 'Done',
-      status: 'done',
-    })),
-    description: 'High Quality Wallpaper Archive',
-    resumeSupported: true,
-  },
-  {
-    id: 'idm-init-3',
-    title: 'Interstellar Soundtrack - Hans Zimmer [FLAC Lossless].zip',
-    url: 'https://archive.org/download/interstellar-flac/zimmer_interstellar.zip',
-    category: 'music',
-    queue: 'main',
-    progress: 74,
-    totalBytes: 685000000,
-    downloadedBytes: 506900000,
-    speed: 'Paused',
-    speedBps: 0,
-    timeLeft: '00:01:42',
-    status: 'paused',
-    dateAdded: '2026-09-30 15:40',
-    savePath: 'C:\\Users\\Shuja\\Downloads\\Music\\zimmer_interstellar.zip',
-    connections: 8,
-    segments: Array.from({ length: 8 }, (_, i) => ({
-      id: i + 1,
-      startByte: i * 85625000,
-      endByte: (i + 1) * 85625000,
-      downloadedBytes: Math.floor(85625000 * 0.74),
-      progress: 74,
-      currentSpeed: 'Paused',
-      status: 'idle',
-    })),
-    description: 'FLAC Mastered Audio Album',
-    resumeSupported: true,
-  },
-  {
-    id: 'idm-init-4',
-    title: 'Python Complete Mastery Course 2026.pdf',
-    url: 'https://docs.python.org/3/archives/python-3.13-docs-pdf-letter.zip',
-    category: 'documents',
-    queue: 'main',
-    progress: 100,
-    totalBytes: 24500000,
-    downloadedBytes: 24500000,
-    speed: 'Complete',
-    speedBps: 0,
-    timeLeft: 'Finished',
-    status: 'completed',
-    dateAdded: '2026-09-30 16:10',
-    savePath: 'C:\\Users\\Shuja\\Downloads\\Documents\\PythonMastery.pdf',
-    connections: 4,
-    segments: Array.from({ length: 4 }, (_, i) => ({
-      id: i + 1,
-      startByte: i * 6125000,
-      endByte: (i + 1) * 6125000,
-      downloadedBytes: 6125000,
-      progress: 100,
-      currentSpeed: 'Done',
-      status: 'done',
-    })),
-    description: 'Documentation Handbook',
-    resumeSupported: true,
-  },
-  {
-    id: 'idm-init-5',
-    title: 'Top Gun Maverick 4K Official Trailer.mp4',
-    url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    category: 'video',
-    queue: 'main',
-    progress: 48,
-    totalBytes: 154200000,
-    downloadedBytes: 74016000,
-    speed: '12.45 MB/s',
-    speedBps: 13054800,
-    timeLeft: '00:00:06',
-    status: 'downloading',
-    dateAdded: '2026-09-30 16:20',
-    savePath: 'C:\\Users\\Shuja\\Downloads\\Video\\TopGunMaverick.mp4',
-    connections: 8,
-    segments: Array.from({ length: 8 }, (_, i) => ({
-      id: i + 1,
-      startByte: i * 19275000,
-      endByte: (i + 1) * 19275000,
-      downloadedBytes: Math.floor(19275000 * (0.4 + (i % 3) * 0.05)),
-      progress: Math.floor(40 + (i % 3) * 5),
-      currentSpeed: `${(1.2 + (i % 4) * 0.3).toFixed(2)} MB/s`,
-      status: 'active',
-    })),
-    description: 'Ultra HD 60fps video stream',
-    resumeSupported: true,
-  },
-];
+export const INITIAL_DOWNLOADS: DownloadItem[] = [];
 
 export const formatBytes = (bytes: number, decimals: number = 2): string => {
   if (bytes === 0) return '0 B';
@@ -233,7 +92,7 @@ export const formatSeconds = (seconds: number): string => {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 };
 
-export const detectCategory = (filenameOrUrl: string): DownloadCategory => {
+export const detectCategory = (filenameOrUrl: string): Exclude<DownloadCategory, 'all'> => {
   const clean = filenameOrUrl.toLowerCase().split('?')[0];
   if (clean.match(/\.(zip|rar|7z|tar|gz|bz2|iso|dmg|tgz|xz)$/)) return 'compressed';
   if (clean.match(/\.(pdf|doc|docx|txt|xls|xlsx|ppt|pptx|epub|csv|rtf)$/)) return 'documents';

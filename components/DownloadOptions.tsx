@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
+import { Download as DownloadIcon } from 'lucide-react';
 import type { AnalysisResult, FormatOption } from '../types';
-import { DownloadIcon } from '../constants';
 
 interface DownloadOptionsProps {
   result: AnalysisResult;
